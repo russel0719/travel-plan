@@ -33,7 +33,7 @@ export default function NewReportPage({ params }: PageProps) {
   const [reportId] = useState(() => generateId())
   const [photos, setPhotos] = useState<PhotoFile[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const [reportCreated, setReportCreated] = useState(false)
+  const reportCreatedRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (!hydrated) hydrate() }, [hydrated, hydrate])
@@ -95,7 +95,8 @@ export default function NewReportPage({ params }: PageProps) {
         )
 
         // 첫 업로드 성공 시 draft 생성
-        if (!reportCreated) {
+        if (!reportCreatedRef.current) {
+          reportCreatedRef.current = true
           addReport(
             tripId,
             {
@@ -109,7 +110,6 @@ export default function NewReportPage({ params }: PageProps) {
             },
             reportId
           )
-          setReportCreated(true)
         }
       } catch {
         setPhotos((prev) =>
