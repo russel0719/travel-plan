@@ -128,3 +128,28 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm;
+  }
+
+  html, body {
+    background: white !important;
+    font-size: 11pt;
+    color: #111 !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-break-before {
+    break-before: page;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+}
