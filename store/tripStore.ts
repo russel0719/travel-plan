@@ -25,7 +25,7 @@ interface TripStore {
   updateAccommodation: (tripId: string, accId: string, data: Partial<Accommodation>) => void
   deleteAccommodation: (tripId: string, accId: string) => void
   updateBudget: (tripId: string, budget: Budget) => void
-  addReport: (tripId: string, report: Omit<TravelReport, 'id' | 'createdAt'>) => TravelReport
+  addReport: (tripId: string, report: Omit<TravelReport, 'id' | 'createdAt'>, presetId?: string) => TravelReport
   updateReport: (tripId: string, reportId: string, data: Partial<TravelReport>) => void
   deleteReport: (tripId: string, reportId: string) => void
 }
@@ -212,10 +212,10 @@ export const useTripStore = create<TripStore>()(
       }))
     },
 
-    addReport: (tripId, reportData) => {
+    addReport: (tripId, reportData, presetId) => {
       const report: TravelReport = {
         ...reportData,
-        id: generateId(),
+        id: presetId ?? generateId(),
         createdAt: new Date().toISOString(),
       }
       set((state) => ({

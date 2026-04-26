@@ -70,14 +70,24 @@ export interface Budget {
   items: BudgetItem[]
 }
 
+export interface ReportPhotoMeta {
+  id: string
+  storagePath: string  // {userId}/{tripId}/{reportId}/{id}.jpg
+  dayIndex: number     // 배치된 날짜 (0-based)
+  order: number        // 날짜 내 순서
+  comment: string      // 사용자 코멘트
+}
+
 export interface TravelReport {
   id: string
   title: string
   createdAt: string
+  status: 'draft' | 'completed'
+  photoMeta: ReportPhotoMeta[]
   userNotes: string
-  aiGeneratedText: string
+  aiGeneratedText: string              // 전체 총평
+  aiDayTexts: Record<string, string>   // dayIndex(string) → AI 보충 텍스트
   scheduleSummary: string
-  photoCount: number
 }
 
 export interface Trip {

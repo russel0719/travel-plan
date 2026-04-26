@@ -194,7 +194,7 @@ export default function TripPage({ params }: PageProps) {
                           </div>
                           <p className="text-[10px] text-gray-400 mt-0.5 ml-5">
                             {new Date(report.createdAt).toLocaleDateString('ko-KR')}
-                            {report.photoCount > 0 && ` · 사진 ${report.photoCount}장`}
+                            {report.photoMeta?.length > 0 && ` · 사진 ${report.photoMeta.length}장`}
                           </p>
                           {report.aiGeneratedText && (
                             <p className="text-[10px] text-gray-500 mt-1 ml-5 line-clamp-2 leading-relaxed">
