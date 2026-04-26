@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
-import { Trip, DaySchedule, ScheduleItem, Flight, Accommodation, Budget } from '@/lib/types'
+import { Trip, DaySchedule, ScheduleItem, Flight, Accommodation, Budget, TravelReport } from '@/lib/types'
 import { loadTrips, saveTrips } from '@/lib/storage'
 import { generateId, getDaysBetween } from '@/lib/utils'
 
@@ -23,6 +23,9 @@ interface TripStore {
   updateAccommodation: (tripId: string, accId: string, data: Partial<Accommodation>) => void
   deleteAccommodation: (tripId: string, accId: string) => void
   updateBudget: (tripId: string, budget: Budget) => void
+  addReport: (tripId: string, report: Omit<TravelReport, 'id' | 'createdAt'>) => TravelReport
+  updateReport: (tripId: string, reportId: string, data: Partial<TravelReport>) => void
+  deleteReport: (tripId: string, reportId: string) => void
 }
 
 const touch = (t: Trip): Trip => ({ ...t, updatedAt: new Date().toISOString() })
@@ -179,6 +182,39 @@ export const useTripStore = create<TripStore>()(
       set((state) => ({
         trips: state.trips.map((t) =>
           t.id !== tripId ? t : touch({ ...t, budget })
+        ),
+      }))
+    },
+
+    addReport: (tripId, reportData) => {
+      const report: TravelReport = {
+        ...reportData,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+      }
+      set((state) => ({
+        trips: state.trips.map((t) =>
+          t.id !== tripId ? t : touch({ ...t, reports: [...(t.reports ?? []), report] })
+        ),
+      }))
+      return report
+    },
+
+    updateReport: (tripId, reportId, data) => {
+      set((state) => ({
+        trips: state.trips.map((t) =>
+          t.id !== tripId ? t : touch({
+            ...t,
+            reports: (t.reports ?? []).map((r) => r.id === reportId ? { ...r, ...data } : r),
+          })
+        ),
+      }))
+    },
+
+    deleteReport: (tripId, reportId) => {
+      set((state) => ({
+        trips: state.trips.map((t) =>
+          t.id !== tripId ? t : touch({ ...t, reports: (t.reports ?? []).filter((r) => r.id !== reportId) })
         ),
       }))
     },

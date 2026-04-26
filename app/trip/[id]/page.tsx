@@ -10,9 +10,10 @@ import AccommodationSection from '@/components/trip/AccommodationSection'
 import BudgetTracker from '@/components/trip/BudgetTracker'
 import TripMap from '@/components/map/TripMap'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { getDayLabel } from '@/lib/utils'
-import { ScheduleItem, Trip, Budget, Flight, Accommodation } from '@/lib/types'
-import { CalendarDays, Plane, Wallet } from 'lucide-react'
+import { getDayLabel, formatDate } from '@/lib/utils'
+import { ScheduleItem, Trip, Budget, Flight, Accommodation, TravelReport } from '@/lib/types'
+import { CalendarDays, Plane, Wallet, BookOpen, PlusCircle, FileText, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -26,10 +27,10 @@ export default function TripPage({ params }: PageProps) {
     updateTrip, addScheduleItem, updateScheduleItem, deleteScheduleItem, reorderScheduleItems,
     addFlight, updateFlight, deleteFlight,
     addAccommodation, updateAccommodation, deleteAccommodation,
-    updateBudget,
+    updateBudget, deleteReport,
   } = useTripStore()
   const [activeDay, setActiveDay] = useState(0)
-  const [panel, setPanel] = useState<'schedule' | 'info' | 'budget'>('schedule')
+  const [panel, setPanel] = useState<'schedule' | 'info' | 'budget' | 'report'>('schedule')
 
   useEffect(() => {
     if (!hydrated) hydrate()
@@ -80,6 +81,19 @@ export default function TripPage({ params }: PageProps) {
               }`}
             >
               <Wallet className="h-3.5 w-3.5" />예산
+            </button>
+            <button
+              onClick={() => setPanel('report')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                panel === 'report' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <BookOpen className="h-3.5 w-3.5" />후기
+              {(trip.reports ?? []).length > 0 && (
+                <span className="ml-0.5 bg-indigo-100 text-indigo-600 rounded-full text-[10px] px-1.5 py-px font-semibold">
+                  {trip.reports!.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -144,6 +158,67 @@ export default function TripPage({ params }: PageProps) {
                 trip={trip}
                 onUpdateBudget={(b: Budget) => updateBudget(id, b)}
               />
+            </div>
+          )}
+
+          {/* 후기 패널 */}
+          {panel === 'report' && (
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => router.push(`/trip/${id}/report`)}
+              >
+                <PlusCircle className="h-4 w-4 mr-1.5" />새 후기 작성
+              </Button>
+
+              {(trip.reports ?? []).length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">아직 작성된 후기가 없어요</p>
+                  <p className="text-xs mt-0.5">여행 후기를 작성해보세요</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {[...(trip.reports ?? [])].reverse().map((report: TravelReport) => (
+                    <div
+                      key={report.id}
+                      className="bg-white border border-gray-100 rounded-lg p-3 hover:border-gray-300 transition-colors cursor-pointer group"
+                      onClick={() => router.push(`/trip/${id}/report/${report.id}`)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <FileText className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                            <p className="text-xs font-semibold text-gray-800 truncate">{report.title}</p>
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-0.5 ml-5">
+                            {new Date(report.createdAt).toLocaleDateString('ko-KR')}
+                            {report.photoCount > 0 && ` · 사진 ${report.photoCount}장`}
+                          </p>
+                          {report.aiGeneratedText && (
+                            <p className="text-[10px] text-gray-500 mt-1 ml-5 line-clamp-2 leading-relaxed">
+                              {report.aiGeneratedText.replace(/##[^\n]*/g, '').replace(/\*\*/g, '').trim().slice(0, 80)}…
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm('이 후기를 삭제할까요?')) {
+                              sessionStorage.removeItem(`report-photos-${report.id}`)
+                              deleteReport(id, report.id)
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -70,6 +70,16 @@ export interface Budget {
   items: BudgetItem[]
 }
 
+export interface TravelReport {
+  id: string
+  title: string
+  createdAt: string
+  userNotes: string
+  aiGeneratedText: string
+  scheduleSummary: string
+  photoCount: number
+}
+
 export interface Trip {
   id: string
   title: string
@@ -81,6 +91,7 @@ export interface Trip {
   flights?: Flight[]
   accommodations?: Accommodation[]
   budget?: Budget
+  reports?: TravelReport[]
   createdAt: string
   updatedAt: string
 }
