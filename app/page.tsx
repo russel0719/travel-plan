@@ -3,16 +3,22 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTripStore } from '@/store/tripStore'
+import { supabase } from '@/lib/supabase'
 import TripCard from '@/components/trip/TripCard'
 import CreateTripDialog from '@/components/trip/CreateTripDialog'
+import LoginPage from '@/components/auth/LoginPage'
 import { Button } from '@/components/ui/button'
-import { Plus, Plane, FlaskConical } from 'lucide-react'
+import { Plus, Plane, FlaskConical, LogOut } from 'lucide-react'
 import { SAMPLE_TRIP } from '@/lib/sampleData'
 
 export default function HomePage() {
   const router = useRouter()
-  const { trips, hydrated, hydrate, createTrip, deleteTrip } = useTripStore()
+  const { trips, hydrated, hydrate, userId, createTrip, deleteTrip } = useTripStore()
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  useEffect(() => {
+    if (!hydrated) hydrate()
+  }, [hydrated, hydrate])
 
   const handleLoadSample = () => {
     const exists = trips.find((t) => t.id === SAMPLE_TRIP.id)
@@ -23,10 +29,6 @@ export default function HomePage() {
     useTripStore.setState((s) => ({ trips: [...s.trips, SAMPLE_TRIP] }))
     router.push(`/trip/${SAMPLE_TRIP.id}`)
   }
-
-  useEffect(() => {
-    if (!hydrated) hydrate()
-  }, [hydrated, hydrate])
 
   const handleCreate = (data: Parameters<typeof createTrip>[0]) => {
     const trip = createTrip(data)
@@ -39,7 +41,25 @@ export default function HomePage() {
     if (confirm('이 여행을 삭제하시겠습니까?')) deleteTrip(id)
   }
 
-  if (!hydrated) return null
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    useTripStore.setState({ trips: [], hydrated: false, userId: null })
+  }
+
+  // 로딩 중
+  if (!hydrated) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center space-y-3 text-muted-foreground">
+          <Plane className="h-8 w-8 mx-auto animate-pulse" />
+          <p className="text-sm">불러오는 중...</p>
+        </div>
+      </main>
+    )
+  }
+
+  // 로그인 안 됨
+  if (!userId) return <LoginPage />
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -62,6 +82,9 @@ export default function HomePage() {
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-1.5" />
               새 여행
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>

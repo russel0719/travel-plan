@@ -1,13 +1,15 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { Trip, DaySchedule, ScheduleItem, Flight, Accommodation, Budget, TravelReport } from '@/lib/types'
-import { loadTrips, saveTrips } from '@/lib/storage'
+import { loadTrips, upsertTrip, removeTrip, getLocalTrips, clearLocalTrips } from '@/lib/storage'
+import { supabase } from '@/lib/supabase'
 import { generateId, getDaysBetween } from '@/lib/utils'
 
 interface TripStore {
   trips: Trip[]
   hydrated: boolean
-  hydrate: () => void
+  userId: string | null
+  hydrate: () => Promise<void>
   createTrip: (data: { title: string; destination: string; startDate: string; endDate: string; isInternational: boolean }) => Trip
   updateTrip: (id: string, data: Partial<Omit<Trip, 'id' | 'createdAt'>>) => void
   deleteTrip: (id: string) => void
@@ -30,14 +32,42 @@ interface TripStore {
 
 const touch = (t: Trip): Trip => ({ ...t, updatedAt: new Date().toISOString() })
 
+// subscribe에서 변경 감지용 — hydrate 시 초기화
+let previousTrips: Trip[] = []
+let hydrating = false
+
 export const useTripStore = create<TripStore>()(
   subscribeWithSelector((set, get) => ({
     trips: [],
     hydrated: false,
+    userId: null,
 
-    hydrate: () => {
-      const trips = loadTrips()
-      set({ trips, hydrated: true })
+    hydrate: async () => {
+      if (hydrating || useTripStore.getState().hydrated) return
+      hydrating = true
+      previousTrips = []
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          set({ trips: [], hydrated: true, userId: null })
+          return
+        }
+
+        // 첫 로그인 시 localStorage 데이터 자동 이전
+        const localTrips = getLocalTrips()
+        if (localTrips.length > 0) {
+          await Promise.all(localTrips.map((t) => upsertTrip(t, user.id)))
+          clearLocalTrips()
+        }
+
+        const trips = await loadTrips(user.id)
+        previousTrips = [...trips]
+        set({ trips, hydrated: true, userId: user.id })
+      } finally {
+        hydrating = false
+      }
     },
 
     createTrip: (data) => {
@@ -58,9 +88,7 @@ export const useTripStore = create<TripStore>()(
 
     updateTrip: (id, data) => {
       set((state) => ({
-        trips: state.trips.map((t) =>
-          t.id === id ? touch({ ...t, ...data }) : t
-        ),
+        trips: state.trips.map((t) => t.id === id ? touch({ ...t, ...data }) : t),
       }))
     },
 
@@ -180,9 +208,7 @@ export const useTripStore = create<TripStore>()(
 
     updateBudget: (tripId, budget) => {
       set((state) => ({
-        trips: state.trips.map((t) =>
-          t.id !== tripId ? t : touch({ ...t, budget })
-        ),
+        trips: state.trips.map((t) => t.id !== tripId ? t : touch({ ...t, budget })),
       }))
     },
 
@@ -221,11 +247,25 @@ export const useTripStore = create<TripStore>()(
   }))
 )
 
+// trips 변경 감지 → 변경된 trip만 Supabase에 upsert/delete
 useTripStore.subscribe(
   (state) => state.trips,
   (trips) => {
-    if (useTripStore.getState().hydrated) {
-      saveTrips(trips)
-    }
+    const { hydrated, userId } = useTripStore.getState()
+    if (!hydrated || !userId) return
+
+    const changed = trips.filter((t) => {
+      const prev = previousTrips.find((p) => p.id === t.id)
+      return !prev || prev.updatedAt !== t.updatedAt
+    })
+
+    const deletedIds = previousTrips
+      .filter((p) => !trips.find((t) => t.id === p.id))
+      .map((p) => p.id)
+
+    previousTrips = [...trips]
+
+    changed.forEach((trip) => upsertTrip(trip, userId))
+    deletedIds.forEach((id) => removeTrip(id))
   }
 )
