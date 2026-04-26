@@ -47,12 +47,12 @@ export default function TripPage({ params }: PageProps) {
   const currentDay = trip.days[activeDay]
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-dvh flex flex-col overflow-hidden">
       <TripHeader trip={trip} onUpdate={(data) => updateTrip(id, data as Partial<Trip>)} />
 
       <div className="flex flex-1 overflow-hidden">
         {/* 좌측 패널 */}
-        <div className="w-full max-w-sm border-r bg-gray-50 flex flex-col overflow-hidden">
+        <div className="w-full md:max-w-sm md:border-r bg-gray-50 flex flex-col overflow-hidden">
 
           {/* 패널 전환 탭 */}
           <div className="border-b bg-white px-3 pt-2 pb-1 flex gap-1">
@@ -105,7 +105,7 @@ export default function TripPage({ params }: PageProps) {
               className="flex flex-col flex-1 overflow-hidden"
             >
               <div className="border-b bg-white px-3 pt-2">
-                <TabsList className="flex gap-1 h-auto flex-wrap bg-transparent p-0 pb-2">
+                <TabsList className="flex gap-1 h-auto overflow-x-auto flex-nowrap bg-transparent p-0 pb-2">
                   {trip.days.map((_, idx) => (
                     <TabsTrigger
                       key={idx}
@@ -224,7 +224,7 @@ export default function TripPage({ params }: PageProps) {
         </div>
 
         {/* 우측: 지도 */}
-        <div className="flex-1 p-3">
+        <div className="hidden md:flex flex-1 p-3">
           {currentDay && <TripMap day={currentDay} />}
         </div>
       </div>

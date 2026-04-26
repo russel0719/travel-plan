@@ -73,7 +73,8 @@ export default function TripHeader({ trip, onUpdate }: TripHeaderProps) {
         className="shrink-0"
         onClick={() => window.open(`/trip/${trip.id}/print`, '_blank')}
       >
-        <FileDown className="h-4 w-4 mr-1.5" />PDF 저장
+        <FileDown className="h-4 w-4 md:mr-1.5" />
+        <span className="hidden md:inline">PDF 저장</span>
       </Button>
     </div>
   )

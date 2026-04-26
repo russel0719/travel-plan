@@ -75,13 +75,17 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleLoadSample}>
-              <FlaskConical className="h-4 w-4 mr-1.5" />
-              샘플 보기
+            <Button variant="outline" size="icon" className="md:hidden" onClick={handleLoadSample} title="샘플 보기">
+              <FlaskConical className="h-4 w-4" />
             </Button>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              새 여행
+            <Button size="icon" className="md:hidden" onClick={() => setDialogOpen(true)} title="새 여행">
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" className="hidden md:inline-flex" onClick={handleLoadSample}>
+              <FlaskConical className="h-4 w-4 mr-1.5" />샘플 보기
+            </Button>
+            <Button className="hidden md:inline-flex" onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />새 여행
             </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout} title="로그아웃">
               <LogOut className="h-4 w-4" />

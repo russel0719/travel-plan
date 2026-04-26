@@ -155,10 +155,10 @@ export default function NewReportPage({ params }: PageProps) {
         <div className="flex items-center gap-2 text-xs">
           <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center font-bold">1</span>
           <span className="font-medium">사진 업로드</span>
-          <span className="text-gray-300 mx-1">›</span>
-          <span className="text-gray-400">2 코멘트 작성</span>
-          <span className="text-gray-300 mx-1">›</span>
-          <span className="text-gray-400">3 AI + PDF</span>
+          <span className="text-gray-300 mx-1 hidden sm:inline">›</span>
+          <span className="text-gray-400 hidden sm:inline">2 코멘트 작성</span>
+          <span className="text-gray-300 mx-1 hidden sm:inline">›</span>
+          <span className="text-gray-400 hidden sm:inline">3 AI + PDF</span>
         </div>
 
         {/* 제목 */}
@@ -261,7 +261,7 @@ export default function NewReportPage({ params }: PageProps) {
                 onClick={handleNext}
                 disabled={isUploading}
               >
-                {doneCount}장 업로드 완료 · 코멘트 작성하기 →
+                {doneCount}장 완료 · 코멘트 작성 →
               </Button>
             )}
           </div>

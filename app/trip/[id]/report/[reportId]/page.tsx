@@ -28,6 +28,8 @@ export default function ReportDetailPage({ params }: PageProps) {
   const [step, setStep] = useState<2 | 3>(2)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generateError, setGenerateError] = useState('')
+  const [editableDayTexts, setEditableDayTexts] = useState<Record<string, string>>({})
+  const [editableOverallText, setEditableOverallText] = useState('')
 
   useEffect(() => { if (!hydrated) hydrate() }, [hydrated, hydrate])
 
@@ -42,6 +44,14 @@ export default function ReportDetailPage({ params }: PageProps) {
   useEffect(() => {
     if (report?.photoMeta) setPhotoMeta(report.photoMeta)
   }, [report?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // step 3 진입 시 편집 가능 텍스트 초기화
+  useEffect(() => {
+    if (step === 3 && report) {
+      setEditableDayTexts(report.aiDayTexts ?? {})
+      setEditableOverallText(report.aiGeneratedText ?? '')
+    }
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // draft 상태면 signed URL 로드
   useEffect(() => {
@@ -119,12 +129,21 @@ export default function ReportDetailPage({ params }: PageProps) {
         scheduleSummary,
         photoMeta,
       })
+      setEditableDayTexts(data.dayTexts ?? {})
+      setEditableOverallText(data.overallReview ?? '')
       setStep(3)
     } catch (err) {
       setGenerateError(String(err))
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  const handleSaveAiTexts = () => {
+    updateReport(tripId, reportId, {
+      aiDayTexts: editableDayTexts,
+      aiGeneratedText: editableOverallText,
+    })
   }
 
   // 날짜별 그룹
@@ -146,14 +165,17 @@ export default function ReportDetailPage({ params }: PageProps) {
         {step === 2 && (
           <Button size="sm" variant="outline" onClick={handleSaveComments}>저장</Button>
         )}
+        {step === 3 && (
+          <Button size="sm" variant="outline" onClick={handleSaveAiTexts}>저장</Button>
+        )}
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
         {/* 단계 표시 */}
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-gray-400">1 업로드 ✓</span>
-          <span className="text-gray-300 mx-1">›</span>
+          <span className="text-gray-400 hidden sm:inline">1 업로드 ✓</span>
+          <span className="text-gray-300 mx-1 hidden sm:inline">›</span>
           <span className={`rounded-full w-5 h-5 flex items-center justify-center font-bold ${step === 2 ? 'bg-primary text-primary-foreground' : 'bg-green-500 text-white'}`}>
             {step === 2 ? '2' : '✓'}
           </span>
@@ -242,25 +264,35 @@ export default function ReportDetailPage({ params }: PageProps) {
               AI 텍스트 생성 완료! PDF를 미리보고 다운로드하세요.
             </div>
 
-            {/* 날짜별 AI 텍스트 미리보기 */}
-            {Object.entries(report.aiDayTexts ?? {}).map(([dayIdx, text]) => {
+            <p className="text-xs text-muted-foreground">텍스트를 직접 수정할 수 있습니다. 저장 후 PDF로 반영됩니다.</p>
+
+            {/* 날짜별 AI 텍스트 편집 */}
+            {Object.entries(editableDayTexts).map(([dayIdx, text]) => {
               const day = trip.days[Number(dayIdx)]
               return day ? (
                 <div key={dayIdx} className="space-y-1">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     {getDayLabel(Number(dayIdx))} · {formatDate(day.date)}
                   </h3>
-                  <p className="text-sm text-gray-700 leading-relaxed bg-white border rounded-lg px-3 py-2">{text}</p>
+                  <Textarea
+                    value={text}
+                    onChange={(e) => setEditableDayTexts((prev) => ({ ...prev, [dayIdx]: e.target.value }))}
+                    rows={4}
+                    className="text-sm resize-y"
+                  />
                 </div>
               ) : null
             })}
 
-            {report.aiGeneratedText && (
+            {(editableOverallText !== '' || report.aiGeneratedText) && (
               <div className="space-y-1">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">전체 총평</h3>
-                <p className="text-sm text-gray-700 leading-relaxed bg-white border rounded-lg px-3 py-2 whitespace-pre-wrap">
-                  {report.aiGeneratedText}
-                </p>
+                <Textarea
+                  value={editableOverallText}
+                  onChange={(e) => setEditableOverallText(e.target.value)}
+                  rows={6}
+                  className="text-sm resize-y"
+                />
               </div>
             )}
 
@@ -270,7 +302,10 @@ export default function ReportDetailPage({ params }: PageProps) {
               </Button>
               <Button
                 className="flex-1"
-                onClick={() => router.push(`/trip/${tripId}/report/${reportId}/print`)}
+                onClick={() => {
+                  handleSaveAiTexts()
+                  router.push(`/trip/${tripId}/report/${reportId}/print`)
+                }}
               >
                 <Printer className="h-4 w-4 mr-1.5" />PDF 보기 / 다운로드
               </Button>
@@ -297,9 +332,9 @@ function PhotoCommentCard({
 }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-      <div className="flex gap-3 p-3">
+      <div className="flex flex-col sm:flex-row gap-3 p-3">
         {/* 썸네일 */}
-        <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+        <div className="w-full h-48 sm:w-24 sm:h-24 shrink-0 rounded-lg overflow-hidden bg-gray-100">
           {signedUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={signedUrl} alt="" className="w-full h-full object-cover" />

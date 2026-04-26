@@ -79,7 +79,8 @@ export default function ReportPrintPage({ params }: PageProps) {
         <span className="text-sm font-medium text-gray-600">PDF 미리보기</span>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => window.print()}>
-            <Printer className="h-4 w-4 mr-1.5" />인쇄 / PDF 저장
+            <Printer className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">인쇄 / PDF 저장</span>
           </Button>
           {report.status === 'draft' && (
             <Button
@@ -91,7 +92,7 @@ export default function ReportPrintPage({ params }: PageProps) {
             >
               {isCompleting
                 ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <><CheckCircle2 className="h-4 w-4 mr-1" />완료하기</>
+                : <><CheckCircle2 className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">완료하기</span></>
               }
             </Button>
           )}
@@ -104,8 +105,8 @@ export default function ReportPrintPage({ params }: PageProps) {
           <span className="ml-2 text-sm text-gray-400">사진 불러오는 중...</span>
         </div>
       ) : (
-        <div className="max-w-[210mm] mx-auto bg-white print:max-w-none print:mx-0 my-8 print:my-0 shadow-xl print:shadow-none">
-          <div className="px-12 py-10 print:px-10 print:py-8">
+        <div className="w-full md:max-w-[210mm] mx-auto bg-white print:max-w-none print:mx-0 my-8 print:my-0 shadow-xl print:shadow-none">
+          <div className="px-4 py-6 md:px-12 md:py-10 print:px-10 print:py-8">
 
             {/* ── 표지 ── */}
             <header className="print-avoid-break border-b-2 border-gray-900 pb-8 mb-8">
@@ -148,7 +149,7 @@ export default function ReportPrintPage({ params }: PageProps) {
                   {pairs.map((pair, pairIdx) => (
                     <div key={pairIdx} className="mb-6">
                       {/* 사진 그리드 */}
-                      <div className={`grid gap-3 mb-4 ${pair.length === 2 ? 'grid-cols-2' : 'grid-cols-1 max-w-xs'}`}>
+                      <div className={`grid gap-3 mb-4 ${pair.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 max-w-xs'}`}>
                         {pair.map((photo) => (
                           <div key={photo.id} className="space-y-1.5">
                             <div className="aspect-[4/3] overflow-hidden rounded-lg bg-gray-100">
