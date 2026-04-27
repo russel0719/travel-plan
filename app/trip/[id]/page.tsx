@@ -14,6 +14,8 @@ import { getDayLabel, formatDate } from '@/lib/utils'
 import { ScheduleItem, Trip, Budget, Flight, Accommodation, TravelReport } from '@/lib/types'
 import { CalendarDays, Plane, Wallet, BookOpen, PlusCircle, FileText, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import ReportUploadPanel from '@/components/report/ReportUploadPanel'
+import ReportCommentPanel from '@/components/report/ReportCommentPanel'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -31,6 +33,14 @@ export default function TripPage({ params }: PageProps) {
   } = useTripStore()
   const [activeDay, setActiveDay] = useState(0)
   const [panel, setPanel] = useState<'schedule' | 'info' | 'budget' | 'report'>('schedule')
+  // null = 지도 표시, 'upload' = 새 후기 업로드, string = 특정 보고서 코멘트
+  const [reportView, setReportView] = useState<null | 'upload' | string>(null)
+
+  const openReportView = (view: 'upload' | string) => {
+    setPanel('report')
+    setReportView(view)
+  }
+  const closeReportView = () => setReportView(null)
 
   useEffect(() => {
     if (!hydrated) hydrate()
@@ -51,8 +61,8 @@ export default function TripPage({ params }: PageProps) {
       <TripHeader trip={trip} onUpdate={(data) => updateTrip(id, data as Partial<Trip>)} />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* 좌측 패널 */}
-        <div className="w-full md:max-w-sm md:border-r bg-gray-50 flex flex-col overflow-hidden">
+        {/* 좌측 패널 - 모바일에서 reportView 활성 시 숨김 */}
+        <div className={`${reportView !== null ? 'hidden md:flex' : 'flex w-full'} md:max-w-sm md:border-r bg-gray-50 flex-col overflow-hidden`}>
 
           {/* 패널 전환 탭 */}
           <div className="border-b bg-white px-3 pt-2 pb-1 flex gap-1">
@@ -167,7 +177,7 @@ export default function TripPage({ params }: PageProps) {
               <Button
                 size="sm"
                 className="w-full"
-                onClick={() => router.push(`/trip/${id}/report`)}
+                onClick={() => openReportView('upload')}
               >
                 <PlusCircle className="h-4 w-4 mr-1.5" />새 후기 작성
               </Button>
@@ -184,7 +194,7 @@ export default function TripPage({ params }: PageProps) {
                     <div
                       key={report.id}
                       className="bg-white border border-gray-100 rounded-lg p-3 hover:border-gray-300 transition-colors cursor-pointer group"
-                      onClick={() => router.push(`/trip/${id}/report/${report.id}`)}
+                      onClick={() => openReportView(report.id)}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -223,9 +233,24 @@ export default function TripPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* 우측: 지도 */}
-        <div className="hidden md:flex flex-1 p-3">
-          {currentDay && <TripMap day={currentDay} />}
+        {/* 우측: 지도 또는 후기 패널 */}
+        <div className={reportView !== null ? 'flex flex-1 overflow-hidden' : 'hidden md:flex flex-1 p-3'}>
+          {reportView === null ? (
+            currentDay && <TripMap day={currentDay} />
+          ) : reportView === 'upload' ? (
+            <ReportUploadPanel
+              tripId={id}
+              onCreated={(newReportId) => setReportView(newReportId)}
+              onBack={closeReportView}
+            />
+          ) : (
+            <ReportCommentPanel
+              tripId={id}
+              reportId={reportView}
+              onPrint={() => router.push(`/trip/${id}/report/${reportView}/print`)}
+              onBack={closeReportView}
+            />
+          )}
         </div>
       </div>
     </div>
