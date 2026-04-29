@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTripStore } from '@/store/tripStore'
-import { getSignedUrls, compressAndUpload } from '@/lib/reportStorage'
+import { getSignedUrls, compressAndUpload, deleteReportPhotos } from '@/lib/reportStorage'
 import { formatDate, getDayLabel, generateId } from '@/lib/utils'
 import { ReportPhotoMeta, TravelReport } from '@/lib/types'
 import {
   ArrowLeft, Loader2, Camera, Printer, ImagePlus, ChevronUp, ChevronDown,
-  FileText, BookOpen, Trash2,
+  FileText, BookOpen, Trash2, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -156,9 +156,19 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
     if (newPhotos.length > 0) {
       const newUrls = await getSignedUrls(newPhotos.map((p) => p.storagePath)).catch(() => ({}))
       setSignedUrls((prev) => ({ ...prev, ...newUrls }))
-      setPhotoMeta((prev) => [...prev, ...newPhotos])
+      const updatedMeta = [...photoMeta, ...newPhotos]
+      setPhotoMeta(updatedMeta)
+      updateReport(tripId, reportId, { photoMeta: updatedMeta })
     }
     setIsAddingPhotos(false)
+  }
+
+  const handleDeletePhoto = (photoId: string) => {
+    const photo = photoMeta.find((p) => p.id === photoId)
+    const updatedMeta = photoMeta.filter((p) => p.id !== photoId)
+    setPhotoMeta(updatedMeta)
+    updateReport(tripId, reportId, { photoMeta: updatedMeta })
+    if (photo) deleteReportPhotos([photo.storagePath]).catch(console.error)
   }
 
   const photosByDay = trip.days.map((day, idx) => ({
@@ -243,6 +253,7 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
                           onChange={handlePhotoChange}
                           onMoveUp={() => handleReorderPhoto(photo.id, 'up')}
                           onMoveDown={() => handleReorderPhoto(photo.id, 'down')}
+                          onDelete={() => handleDeletePhoto(photo.id)}
                         />
                       ))}
                     </div>
@@ -265,6 +276,7 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
                         onChange={handlePhotoChange}
                         onMoveUp={() => {}}
                         onMoveDown={() => {}}
+                        onDelete={() => handleDeletePhoto(photo.id)}
                       />
                     ))}
                   </div>
@@ -295,7 +307,7 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
 }
 
 function PhotoCard({
-  photo, signedUrl, days, isFirst, isLast, onChange, onMoveUp, onMoveDown,
+  photo, signedUrl, days, isFirst, isLast, onChange, onMoveUp, onMoveDown, onDelete,
 }: {
   photo: ReportPhotoMeta
   signedUrl?: string
@@ -305,6 +317,7 @@ function PhotoCard({
   onChange: (id: string, field: keyof ReportPhotoMeta, value: string | number) => void
   onMoveUp: () => void
   onMoveDown: () => void
+  onDelete: () => void
 }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
@@ -317,6 +330,14 @@ function PhotoCard({
             <Camera className="h-8 w-8 text-gray-300" />
           </div>
         )}
+        <div className="absolute top-2 left-2">
+          <button
+            onClick={() => { if (confirm('이 사진을 삭제할까요?')) onDelete() }}
+            className="bg-black/50 hover:bg-red-500 text-white rounded-md p-1.5 shadow-sm transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
         <div className="absolute top-2 right-2 flex flex-col gap-1">
           {!isFirst && (
             <button
