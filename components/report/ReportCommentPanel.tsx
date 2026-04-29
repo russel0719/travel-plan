@@ -53,8 +53,8 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
   if (report.status === 'completed') {
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="border-b bg-white px-4 py-2.5 flex items-center gap-3 shrink-0">
-          <Button variant="ghost" size="sm" onClick={onBack}>
+        <div className="border-b bg-white px-4 py-3 flex items-center gap-3 shrink-0">
+          <Button variant="ghost" size="default" onClick={onBack}>
             <ArrowLeft className="h-4 w-4 mr-1" />뒤로
           </Button>
           <span className="text-sm font-semibold text-gray-700 flex-1 truncate">{report.title}</span>
@@ -72,13 +72,13 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <BookOpen className="h-3.5 w-3.5" />
+          <div className="max-w-5xl mx-auto px-4 py-6 space-y-6 pb-10">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <BookOpen className="h-4 w-4" />
               완료된 후기 · {new Date(report.createdAt).toLocaleDateString('ko-KR')}
               · 사진 {report.photoMeta.length}장 (삭제됨)
             </div>
-            <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 text-xs text-amber-700">
+            <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 text-sm text-amber-700">
               사진은 PDF 생성 완료 후 삭제되었습니다. 코멘트는 보관됩니다.
             </div>
             {trip.days.map((day, idx) => {
@@ -86,14 +86,14 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
               if (photos.length === 0) return null
               return (
                 <section key={idx} className="space-y-2">
-                  <h3 className="text-sm font-semibold flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-gray-800 text-white text-[10px] flex items-center justify-center">{idx + 1}</span>
+                  <h3 className="text-base font-semibold flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-gray-800 text-white text-xs flex items-center justify-center">{idx + 1}</span>
                     {getDayLabel(idx)} · {formatDate(day.date)}
                   </h3>
-                  <div className="space-y-1 pl-2">
+                  <div className="space-y-1.5 pl-2">
                     {photos.map((p) => p.comment && (
-                      <p key={p.id} className="text-xs text-gray-600 bg-white border rounded px-2 py-1">
-                        <FileText className="h-3 w-3 inline mr-1 text-gray-400" />{p.comment}
+                      <p key={p.id} className="text-sm text-gray-600 bg-white border rounded-lg px-3 py-2">
+                        <FileText className="h-3.5 w-3.5 inline mr-1.5 text-gray-400" />{p.comment}
                       </p>
                     ))}
                   </div>
@@ -181,21 +181,21 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* 패널 헤더 */}
-      <div className="border-b bg-white px-4 py-2.5 flex items-center gap-3 shrink-0">
-        <Button variant="ghost" size="sm" onClick={onBack}>
+      <div className="border-b bg-white px-4 py-3 flex items-center gap-2 shrink-0">
+        <Button variant="ghost" size="default" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-1" />뒤로
         </Button>
-        <span className="text-sm font-semibold text-gray-700 flex-1 truncate">{report.title}</span>
+        <span className="text-sm font-semibold text-gray-700 flex-1 truncate min-w-0">{report.title}</span>
         {photoMeta.length < MAX_TOTAL_PHOTOS && (
           <Button
             variant="outline"
-            size="sm"
+            size="default"
             onClick={() => addPhotoInputRef.current?.click()}
             disabled={isAddingPhotos}
           >
             {isAddingPhotos
               ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <><ImagePlus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">사진 추가</span></>
+              : <><ImagePlus className="h-4 w-4 mr-1.5" />사진 추가</>
             }
           </Button>
         )}
@@ -207,36 +207,36 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
           className="hidden"
           onChange={handleAddPhotos}
         />
-        <Button size="sm" variant="outline" onClick={handleSaveComments}>저장</Button>
+        <Button size="default" variant="outline" onClick={handleSaveComments}>저장</Button>
       </div>
 
       {/* 스크롤 콘텐츠 */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        <div className="max-w-5xl mx-auto px-4 py-6 space-y-6 pb-10">
 
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-sm">
             <span className="text-gray-400">1 업로드 ✓</span>
             <span className="text-gray-300 mx-1">›</span>
-            <span className="rounded-full w-5 h-5 flex items-center justify-center font-bold bg-primary text-primary-foreground">2</span>
+            <span className="rounded-full w-6 h-6 flex items-center justify-center font-bold bg-primary text-primary-foreground text-sm">2</span>
             <span className="font-medium">코멘트 작성</span>
           </div>
 
           {loadingUrls ? (
-            <div className="text-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-400" />
-              <p className="text-sm text-gray-400 mt-2">사진 불러오는 중...</p>
+            <div className="text-center py-16">
+              <Loader2 className="h-7 w-7 animate-spin mx-auto text-gray-400" />
+              <p className="text-sm text-gray-400 mt-3">사진 불러오는 중...</p>
             </div>
           ) : (
             <>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 각 사진의 날짜를 지정하고 코멘트를 남겨주세요. ↑↓ 버튼으로 순서를 바꿀 수 있습니다.
               </p>
 
               {photosByDay.map(({ dayIdx, dateLabel, photos: dayPhotos }) =>
                 dayPhotos.length === 0 ? null : (
-                  <section key={dayIdx} className="space-y-3">
-                    <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-gray-900 text-white text-[10px] flex items-center justify-center font-bold">
+                  <section key={dayIdx} className="space-y-4">
+                    <h3 className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-gray-900 text-white text-xs flex items-center justify-center font-bold">
                         {dayIdx + 1}
                       </span>
                       {getDayLabel(dayIdx)} · {dateLabel}
@@ -262,8 +262,8 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
               )}
 
               {unassigned.length > 0 && (
-                <section className="space-y-3">
-                  <h3 className="text-sm font-semibold text-amber-600">날짜 미지정 사진</h3>
+                <section className="space-y-4">
+                  <h3 className="text-base font-semibold text-amber-600">날짜 미지정 사진</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {unassigned.map((photo) => (
                       <PhotoCard
@@ -284,19 +284,19 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
               )}
 
               {photoMeta.length === 0 && (
-                <div className="text-center py-12 text-sm text-gray-400">
+                <div className="text-center py-16 text-sm text-gray-400">
                   사진이 없습니다. 위의 &ldquo;사진 추가&rdquo; 버튼으로 추가하세요.
                 </div>
               )}
 
               <Button
-                className="w-full"
+                className="w-full h-12 text-base"
                 onClick={() => {
                   handleSaveComments()
                   onPrint()
                 }}
               >
-                <Printer className="h-4 w-4 mr-1.5" />PDF 보기 / 다운로드
+                <Printer className="h-5 w-5 mr-2" />PDF 보기 / 다운로드
               </Button>
             </>
           )}
@@ -327,47 +327,47 @@ function PhotoCard({
           <img src={signedUrl} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Camera className="h-8 w-8 text-gray-300" />
+            <Camera className="h-10 w-10 text-gray-300" />
           </div>
         )}
         <div className="absolute top-2 left-2">
           <button
             onClick={() => { if (confirm('이 사진을 삭제할까요?')) onDelete() }}
-            className="bg-black/50 hover:bg-red-500 text-white rounded-md p-1.5 shadow-sm transition-colors"
+            className="bg-black/50 hover:bg-red-500 text-white rounded-md p-2.5 shadow-sm transition-colors"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="absolute top-2 right-2 flex flex-col gap-1">
+        <div className="absolute top-2 right-2 flex flex-col gap-1.5">
           {!isFirst && (
             <button
               onClick={onMoveUp}
-              className="bg-white/80 backdrop-blur-sm hover:bg-white rounded-md p-1.5 shadow-sm transition-colors"
+              className="bg-white/80 backdrop-blur-sm hover:bg-white rounded-md p-2.5 shadow-sm transition-colors"
             >
-              <ChevronUp className="h-3.5 w-3.5 text-gray-600" />
+              <ChevronUp className="h-4 w-4 text-gray-600" />
             </button>
           )}
           {!isLast && (
             <button
               onClick={onMoveDown}
-              className="bg-white/80 backdrop-blur-sm hover:bg-white rounded-md p-1.5 shadow-sm transition-colors"
+              className="bg-white/80 backdrop-blur-sm hover:bg-white rounded-md p-2.5 shadow-sm transition-colors"
             >
-              <ChevronDown className="h-3.5 w-3.5 text-gray-600" />
+              <ChevronDown className="h-4 w-4 text-gray-600" />
             </button>
           )}
         </div>
       </div>
-      <div className="p-3 space-y-2">
+      <div className="p-4 space-y-3">
         <Select
           value={String(photo.dayIndex)}
           onValueChange={(v) => onChange(photo.id, 'dayIndex', Number(v))}
         >
-          <SelectTrigger className="h-8 text-xs">
-            <span className="text-xs">{getDayLabel(photo.dayIndex)}</span>
+          <SelectTrigger className="h-11 text-sm">
+            <span className="text-sm">{getDayLabel(photo.dayIndex)}</span>
           </SelectTrigger>
           <SelectContent>
             {days.map((_, idx) => (
-              <SelectItem key={idx} value={String(idx)} className="text-xs">
+              <SelectItem key={idx} value={String(idx)} className="text-sm">
                 {getDayLabel(idx)}
               </SelectItem>
             ))}
@@ -377,7 +377,7 @@ function PhotoCard({
           placeholder="이 사진에 대한 코멘트..."
           value={photo.comment}
           onChange={(e) => onChange(photo.id, 'comment', e.target.value)}
-          rows={2}
+          rows={3}
           className="text-sm resize-none"
         />
       </div>

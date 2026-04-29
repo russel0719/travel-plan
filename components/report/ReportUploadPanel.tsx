@@ -121,15 +121,15 @@ export default function ReportUploadPanel({ tripId, onCreated, onBack }: ReportU
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-xl mx-auto px-4 py-6 space-y-6 pb-10">
 
         {/* 뒤로 + 단계 표시 */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack}>
+          <Button variant="ghost" size="default" onClick={onBack}>
             <ArrowLeft className="h-4 w-4 mr-1" />뒤로
           </Button>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center font-bold">1</span>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm">1</span>
             <span className="font-medium">사진 업로드</span>
             <span className="text-gray-300 mx-1">›</span>
             <span className="text-gray-400">2 코멘트 & PDF</span>
@@ -137,25 +137,26 @@ export default function ReportUploadPanel({ tripId, onCreated, onBack }: ReportU
         </div>
 
         {/* 제목 */}
-        <div className="space-y-1.5">
-          <Label htmlFor="report-title">후기 제목</Label>
+        <div className="space-y-2">
+          <Label htmlFor="report-title" className="text-sm">후기 제목</Label>
           <Input
             id="report-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            className="h-11 text-base"
           />
         </div>
 
         {/* 업로드 영역 */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label>
+            <Label className="text-sm">
               사진{' '}
               <span className="text-muted-foreground font-normal text-xs">({photos.length}/{MAX_PHOTOS}장)</span>
             </Label>
             {photos.length < MAX_PHOTOS && (
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <ImagePlus className="h-4 w-4 mr-1" />사진 추가
+              <Button variant="outline" size="default" onClick={() => fileInputRef.current?.click()}>
+                <ImagePlus className="h-4 w-4 mr-1.5" />사진 추가
               </Button>
             )}
             <input
@@ -170,40 +171,40 @@ export default function ReportUploadPanel({ tripId, onCreated, onBack }: ReportU
 
           {photos.length === 0 ? (
             <button
-              className="w-full border-2 border-dashed border-gray-200 rounded-xl p-12 text-center hover:border-gray-300 transition-colors"
+              className="w-full border-2 border-dashed border-gray-200 rounded-xl p-14 text-center hover:border-gray-300 transition-colors"
               onClick={() => fileInputRef.current?.click()}
             >
-              <ImagePlus className="h-10 w-10 mx-auto text-gray-300 mb-2" />
-              <p className="text-sm text-gray-500 font-medium">클릭해서 사진 선택</p>
-              <p className="text-xs text-gray-400 mt-1">최대 {MAX_PHOTOS}장 · 자동 압축</p>
+              <ImagePlus className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+              <p className="text-base text-gray-500 font-medium">클릭해서 사진 선택</p>
+              <p className="text-sm text-gray-400 mt-1.5">최대 {MAX_PHOTOS}장 · 자동 압축</p>
             </button>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {photos.map((photo) => (
-                <div key={photo.id} className="relative aspect-square group">
+                <div key={photo.id} className="relative aspect-square">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={photo.previewUrl} alt="" className="w-full h-full object-cover rounded-lg" />
                   {photo.status === 'uploading' && (
                     <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center">
-                      <Loader2 className="h-5 w-5 text-white animate-spin" />
+                      <Loader2 className="h-6 w-6 text-white animate-spin" />
                     </div>
                   )}
                   {photo.status === 'error' && (
                     <div className="absolute inset-0 bg-red-500/50 rounded-lg flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold">실패</span>
+                      <span className="text-white text-sm font-semibold">실패</span>
                     </div>
                   )}
                   {photo.status === 'done' && (
-                    <div className="absolute bottom-1 right-1 bg-green-500 rounded-full p-0.5">
-                      <CheckCircle2 className="h-3 w-3 text-white" />
+                    <div className="absolute bottom-1.5 right-1.5 bg-green-500 rounded-full p-1">
+                      <CheckCircle2 className="h-4 w-4 text-white" />
                     </div>
                   )}
                   {photo.status === 'pending' && (
                     <button
                       onClick={() => handleRemove(photo.id)}
-                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-2 transition-opacity"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-4 w-4" />
                     </button>
                   )}
                 </div>
@@ -216,16 +217,16 @@ export default function ReportUploadPanel({ tripId, onCreated, onBack }: ReportU
         {photos.length > 0 && (
           <div className="space-y-3">
             {pendingCount > 0 && (
-              <Button className="w-full" onClick={handleUpload} disabled={isUploading}>
+              <Button className="w-full h-12 text-base" onClick={handleUpload} disabled={isUploading}>
                 {isUploading
-                  ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />업로드 중 ({doneCount}/{photos.length})</>
-                  : <><Upload className="h-4 w-4 mr-1.5" />{pendingCount}장 업로드</>
+                  ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />업로드 중 ({doneCount}/{photos.length})</>
+                  : <><Upload className="h-5 w-5 mr-2" />{pendingCount}장 업로드</>
                 }
               </Button>
             )}
             {doneCount > 0 && (
               <Button
-                className="w-full"
+                className="w-full h-12 text-base"
                 variant={allUploaded ? 'default' : 'outline'}
                 onClick={handleNext}
                 disabled={isUploading}
