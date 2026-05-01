@@ -55,6 +55,14 @@ export const useTripStore = create<TripStore>()(
           return
         }
 
+        // AUTH.md: app_id, role 메타데이터 미설정 시 동기화
+        const meta = user.user_metadata ?? {}
+        if (meta.app_id !== 'travel_plan' || meta.role !== 'user') {
+          await supabase.auth.updateUser({
+            data: { app_id: 'travel_plan', role: 'user' },
+          })
+        }
+
         // 첫 로그인 시 localStorage 데이터 자동 이전
         const localTrips = getLocalTrips()
         if (localTrips.length > 0) {

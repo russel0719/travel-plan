@@ -18,7 +18,7 @@ export default function TripCard({ trip, onClick, onDelete }: TripCardProps) {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow group"
+      className="cursor-pointer hover:border-primary transition-colors group"
       onClick={onClick}
     >
       <CardHeader className="pb-2">

@@ -320,7 +320,7 @@ function PhotoCard({
   onDelete: () => void
 }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+    <div className="bg-white border border-border rounded-xl overflow-hidden">
       <div className="relative w-full aspect-[4/3] bg-gray-100">
         {signedUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -333,7 +333,7 @@ function PhotoCard({
         <div className="absolute top-2 left-2">
           <button
             onClick={() => { if (confirm('이 사진을 삭제할까요?')) onDelete() }}
-            className="bg-black/50 hover:bg-red-500 text-white rounded-md p-2.5 shadow-sm transition-colors"
+            className="bg-black/50 hover:bg-red-500 text-white rounded-md p-2.5 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -342,7 +342,7 @@ function PhotoCard({
           {!isFirst && (
             <button
               onClick={onMoveUp}
-              className="bg-white/80 backdrop-blur-sm hover:bg-white rounded-md p-2.5 shadow-sm transition-colors"
+              className="bg-white hover:bg-gray-50 rounded-md p-2.5 transition-colors border border-border"
             >
               <ChevronUp className="h-4 w-4 text-gray-600" />
             </button>
@@ -350,7 +350,7 @@ function PhotoCard({
           {!isLast && (
             <button
               onClick={onMoveDown}
-              className="bg-white/80 backdrop-blur-sm hover:bg-white rounded-md p-2.5 shadow-sm transition-colors"
+              className="bg-white hover:bg-gray-50 rounded-md p-2.5 transition-colors border border-border"
             >
               <ChevronDown className="h-4 w-4 text-gray-600" />
             </button>

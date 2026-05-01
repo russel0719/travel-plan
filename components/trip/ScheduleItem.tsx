@@ -26,7 +26,7 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
 
   return (
     <div ref={setNodeRef} style={style} className="group">
-      <div className="flex items-start gap-2 bg-white rounded-lg border p-3 hover:shadow-sm transition-shadow">
+      <div className="flex items-start gap-2 bg-white rounded-lg border p-3 hover:border-primary transition-colors">
         <button
           className="mt-1 text-muted-foreground cursor-grab active:cursor-grabbing touch-none"
           {...attributes}

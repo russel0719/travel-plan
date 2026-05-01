@@ -133,7 +133,7 @@ export default function AccommodationSection({ accommodations, onAdd, onUpdate, 
       )}
 
       {accommodations.map((acc) => (
-        <div key={acc.id} className="rounded-xl border bg-gradient-to-br from-violet-50 to-white p-4 group relative">
+        <div key={acc.id} className="rounded-xl border bg-violet-50/40 p-4 group relative">
           <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditAcc(acc)}>
               <Pencil className="h-3 w-3" />
@@ -151,19 +151,19 @@ export default function AccommodationSection({ accommodations, onAdd, onUpdate, 
           )}
 
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="bg-white rounded-lg p-2 border border-violet-100">
+            <div className="bg-white rounded-lg p-2 border border-border">
               <p className="text-xs text-muted-foreground">체크인</p>
               <p className="text-sm font-semibold">{acc.checkInDate ? formatDate(acc.checkInDate) : '-'}</p>
               {acc.checkInTime && <p className="text-xs text-violet-600">{acc.checkInTime}</p>}
             </div>
-            <div className="bg-white rounded-lg p-2 border border-violet-100">
+            <div className="bg-white rounded-lg p-2 border border-border">
               <p className="text-xs text-muted-foreground">체크아웃</p>
               <p className="text-sm font-semibold">{acc.checkOutDate ? formatDate(acc.checkOutDate) : '-'}</p>
               {acc.checkOutTime && <p className="text-xs text-violet-600">{acc.checkOutTime}</p>}
             </div>
           </div>
 
-          <div className="mt-3 pt-3 border-t border-violet-100 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+          <div className="mt-3 pt-3 border-t border-border flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
             {acc.bookingPlatform && <span>{acc.bookingPlatform}</span>}
             {acc.bookingRef && (
               <span className="flex items-center gap-1">
