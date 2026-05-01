@@ -25,9 +25,12 @@ export async function upsertTrip(trip: Trip, userId: string): Promise<void> {
     data: trip,
     created_at: trip.createdAt,
     updated_at: trip.updatedAt,
-  })
+  }, { onConflict: 'id' })
 
-  if (error) console.error('upsertTrip error:', error.message)
+  if (error) {
+    console.error('upsertTrip error:', error.code, error.message, error.details, error.hint)
+    alert(`DB 저장 오류: ${error.message}`)
+  }
 }
 
 export async function removeTrip(tripId: string): Promise<void> {
