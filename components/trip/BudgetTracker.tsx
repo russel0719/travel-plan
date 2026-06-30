@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { generateId } from '@/lib/utils'
-import { Plus, Trash2, TrendingUp } from 'lucide-react'
+import { Plus, Trash2, TrendingUp, Pencil, Check, X } from 'lucide-react'
 
 interface BudgetTrackerProps {
   trip: Trip
@@ -31,6 +31,9 @@ export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerPro
   const [newCategory, setNewCategory] = useState<BudgetCategory>('etc')
   const [newLabel, setNewLabel] = useState('')
   const [newAmount, setNewAmount] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editLabel, setEditLabel] = useState('')
 
   const save = (b: Budget) => onUpdateBudget(b)
 
@@ -55,6 +58,24 @@ export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerPro
   const deleteItem = (id: string) =>
     save({ ...budget, items: budget.items.filter((i) => i.id !== id) })
 
+  const startEdit = (item: BudgetItem) => {
+    setEditingId(item.id)
+    setEditAmount(String(item.plannedKRW))
+    setEditLabel(item.label ?? '')
+  }
+
+  const confirmEdit = (id: string) => {
+    save({
+      ...budget,
+      items: budget.items.map((i) =>
+        i.id === id
+          ? { ...i, plannedKRW: Number(editAmount) || i.plannedKRW, label: editLabel || undefined }
+          : i
+      ),
+    })
+    setEditingId(null)
+  }
+
   // 실제 지출 계산 (일정 아이템 + 항공 + 숙박)
   const actualByCategory: Partial<Record<BudgetCategory, number>> = {}
 
@@ -73,11 +94,13 @@ export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerPro
 
   const totalPlanned = budget.items.reduce((s, i) => s + i.plannedKRW, 0)
   const totalActual = Object.values(actualByCategory).reduce((s, v) => s + (v ?? 0), 0)
+  const remaining = totalPlanned - totalActual
+  const isOver = remaining < 0
 
   return (
     <div className="space-y-4">
       {/* 환율 설정 */}
-      <div className="flex items-center gap-2 p-3 bg-muted/40 rounded-lg">
+      <div className="flex items-center gap-2 p-3 bg-muted/40 rounded-lg flex-wrap">
         <span className="text-xs text-muted-foreground whitespace-nowrap">현지통화</span>
         <Input
           className="h-7 w-16 text-xs"
@@ -96,14 +119,20 @@ export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerPro
       </div>
 
       {/* 총합 요약 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border p-3 bg-blue-50">
-          <p className="text-xs text-muted-foreground">예산 합계</p>
-          <p className="text-lg font-bold text-blue-700">₩{totalPlanned.toLocaleString()}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl border p-2.5 bg-blue-50">
+          <p className="text-xs text-muted-foreground">예산</p>
+          <p className="text-base font-bold text-blue-700">₩{totalPlanned.toLocaleString()}</p>
         </div>
-        <div className="rounded-xl border p-3 bg-emerald-50">
-          <p className="text-xs text-muted-foreground">실지출 합계</p>
-          <p className="text-lg font-bold text-emerald-700">₩{totalActual.toLocaleString()}</p>
+        <div className="rounded-xl border p-2.5 bg-emerald-50">
+          <p className="text-xs text-muted-foreground">실지출</p>
+          <p className="text-base font-bold text-emerald-700">₩{totalActual.toLocaleString()}</p>
+        </div>
+        <div className={`rounded-xl border p-2.5 ${isOver ? 'bg-red-50' : 'bg-gray-50'}`}>
+          <p className="text-xs text-muted-foreground">{isOver ? '초과' : '잔액'}</p>
+          <p className={`text-base font-bold ${isOver ? 'text-red-600' : 'text-gray-700'}`}>
+            {isOver ? '-' : ''}₩{Math.abs(remaining).toLocaleString()}
+          </p>
         </div>
       </div>
 
@@ -124,34 +153,80 @@ export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerPro
           const ratio = item.plannedKRW > 0 ? Math.min(actual / item.plannedKRW, 1) : 0
           const over = actual > item.plannedKRW && item.plannedKRW > 0
           const color = BUDGET_CATEGORY_COLORS[item.category]
+          const isEditing = editingId === item.id
+
           return (
             <div key={item.id} className="rounded-lg border p-3 group">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                  <span className="text-sm">{item.label || BUDGET_CATEGORY_LABELS[item.category]}</span>
+              {isEditing ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="text-xs text-muted-foreground">{BUDGET_CATEGORY_LABELS[item.category]}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      className="h-7 text-xs flex-1"
+                      placeholder="항목 이름"
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                    />
+                    <div className="relative flex-1">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₩</span>
+                      <Input
+                        className="h-7 text-xs pl-5"
+                        type="number"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && confirmEdit(item.id)}
+                        autoFocus
+                      />
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" onClick={() => confirmEdit(item.id)}>
+                      <Check className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingId(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs ${over ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
-                    ₩{actual.toLocaleString()}
-                  </span>
-                  <span className="text-xs text-muted-foreground">/ ₩{item.plannedKRW.toLocaleString()}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 opacity-0 group-hover:opacity-100 hover:text-destructive"
-                    onClick={() => deleteItem(item.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${ratio * 100}%`, backgroundColor: over ? '#ef4444' : color }}
-                />
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                      <span className="text-sm">{item.label || BUDGET_CATEGORY_LABELS[item.category]}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs ${over ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
+                        ₩{actual.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-muted-foreground">/ ₩{item.plannedKRW.toLocaleString()}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 md:opacity-0 md:group-hover:opacity-100 hover:text-primary"
+                        onClick={() => startEdit(item)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 md:opacity-0 md:group-hover:opacity-100 hover:text-destructive"
+                        onClick={() => deleteItem(item.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${ratio * 100}%`, backgroundColor: over ? '#ef4444' : color }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )
         })}

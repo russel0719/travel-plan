@@ -63,11 +63,19 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
           {item.notes && (
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.notes}</p>
           )}
-          {item.duration && (
-            <p className="text-xs text-muted-foreground mt-0.5">{item.duration}분</p>
-          )}
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            {item.duration && (
+              <p className="text-xs text-muted-foreground">{item.duration}분</p>
+            )}
+            {item.price != null && (
+              <p className="text-xs font-medium text-foreground">
+                {item.price.toLocaleString()} {item.currency ?? ''}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 shrink-0">
+        {/* 모바일: 항상 표시 / 데스크톱: hover 시 표시 */}
+        <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 shrink-0">
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5" />
           </Button>

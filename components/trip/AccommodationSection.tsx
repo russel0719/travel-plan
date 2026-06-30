@@ -134,7 +134,7 @@ export default function AccommodationSection({ accommodations, onAdd, onUpdate, 
 
       {accommodations.map((acc) => (
         <div key={acc.id} className="rounded-xl border bg-violet-50/40 p-4 group relative">
-          <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-3 right-3 flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditAcc(acc)}>
               <Pencil className="h-3 w-3" />
             </Button>

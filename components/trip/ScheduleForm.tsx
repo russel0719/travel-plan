@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ScheduleItem, ScheduleItemType, TransportType, ITEM_TYPE_LABELS, TRANSPORT_LABELS } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,20 +33,64 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
   })
 
   const [locationName, setLocationName] = useState(initial?.location?.name ?? '')
+  const [locationLat, setLocationLat] = useState(initial?.location?.lat ?? 0)
+  const [locationLng, setLocationLng] = useState(initial?.location?.lng ?? 0)
+  const locationInputRef = useRef<HTMLInputElement>(null)
+
+  // Google Places Autocomplete — API가 로드된 경우에만 활성화
+  useEffect(() => {
+    if (!open) return
+    const el = locationInputRef.current
+    if (!el) return
+
+    const tryInit = () => {
+      const g = (window as any).google
+      if (!g?.maps?.places?.Autocomplete) return false
+
+      const autocomplete = new g.maps.places.Autocomplete(el, {
+        fields: ['name', 'geometry'],
+      })
+      const listener = autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace()
+        if (place.geometry?.location) {
+          setLocationName(place.name ?? '')
+          setLocationLat(place.geometry.location.lat())
+          setLocationLng(place.geometry.location.lng())
+        }
+      })
+      return listener
+    }
+
+    let listener: any = tryInit()
+    if (!listener) {
+      // Google Maps가 아직 로드 중인 경우 잠시 후 재시도
+      const timer = setTimeout(() => { listener = tryInit() }, 1000)
+      return () => clearTimeout(timer)
+    }
+    return () => {
+      if (listener) (window as any).google?.maps?.event?.removeListener(listener)
+    }
+  }, [open])
 
   const handleSave = () => {
     if (!form.title.trim()) return
     onSave({
       ...form,
-      location: locationName.trim() ? { name: locationName.trim(), lat: 0, lng: 0 } : undefined,
+      location: locationName.trim()
+        ? { name: locationName.trim(), lat: locationLat, lng: locationLng }
+        : undefined,
     })
     setForm(EMPTY)
     setLocationName('')
+    setLocationLat(0)
+    setLocationLng(0)
   }
 
   const handleClose = () => {
     setForm(EMPTY)
     setLocationName('')
+    setLocationLat(0)
+    setLocationLng(0)
     onClose()
   }
 
@@ -92,12 +136,21 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
             />
           </div>
           <div className="space-y-1.5">
-            <Label>장소 이름</Label>
+            <Label>장소 검색</Label>
             <Input
+              ref={locationInputRef}
               placeholder="예: Tokyo Tower"
               value={locationName}
-              onChange={(e) => setLocationName(e.target.value)}
+              onChange={(e) => {
+                setLocationName(e.target.value)
+                // 직접 타이핑 시 좌표 초기화
+                setLocationLat(0)
+                setLocationLng(0)
+              }}
             />
+            {locationLat !== 0 && (
+              <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

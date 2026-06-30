@@ -7,7 +7,7 @@ import { formatDate, getDayLabel, generateId } from '@/lib/utils'
 import { ReportPhotoMeta, TravelReport } from '@/lib/types'
 import {
   ArrowLeft, Loader2, Camera, Printer, ImagePlus, ChevronUp, ChevronDown,
-  FileText, BookOpen, Trash2, X,
+  FileText, BookOpen, Trash2, X, Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -31,6 +31,7 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
   const [loadingUrls, setLoadingUrls] = useState(false)
   const [photoMeta, setPhotoMeta] = useState<ReportPhotoMeta[]>([])
   const [isAddingPhotos, setIsAddingPhotos] = useState(false)
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const addPhotoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -48,6 +49,46 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
   }, [report?.id, report?.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!trip || !report) return null
+
+  const handleGenerateAI = async () => {
+    setIsGeneratingAI(true)
+    try {
+      const dayContexts = trip.days.map((day, idx) => ({
+        dayIndex: idx,
+        dateLabel: day.date,
+        scheduleItems: day.items.map((i) => i.title),
+        photoComments: photoMeta
+          .filter((p) => p.dayIndex === idx && p.comment)
+          .sort((a, b) => a.order - b.order)
+          .map((p) => p.comment),
+      }))
+
+      const res = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripTitle: trip.title,
+          destination: trip.destination,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          dayContexts,
+        }),
+      })
+
+      if (!res.ok) throw new Error('AI 생성 실패')
+      const { dayTexts, overallReview } = await res.json()
+      updateReport(tripId, reportId, {
+        photoMeta,
+        aiDayTexts: dayTexts ?? {},
+        aiGeneratedText: overallReview ?? '',
+      })
+    } catch (err) {
+      console.error(err)
+      alert('AI 후기 생성에 실패했습니다. 잠시 후 다시 시도하세요.')
+    } finally {
+      setIsGeneratingAI(false)
+    }
+  }
 
   // ── 완료된 후기 뷰 ──
   if (report.status === 'completed') {
@@ -207,6 +248,20 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
           className="hidden"
           onChange={handleAddPhotos}
         />
+        <Button
+          size="default"
+          variant="outline"
+          className="text-purple-600 border-purple-200 hover:bg-purple-50"
+          onClick={handleGenerateAI}
+          disabled={isGeneratingAI || photoMeta.length === 0}
+          title="AI 후기 생성"
+        >
+          {isGeneratingAI
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <Sparkles className="h-4 w-4 mr-1.5" />
+          }
+          <span className="hidden sm:inline">{isGeneratingAI ? 'AI 생성 중...' : 'AI 후기'}</span>
+        </Button>
         <Button size="default" variant="outline" onClick={handleSaveComments}>저장</Button>
       </div>
 
@@ -286,6 +341,17 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
               {photoMeta.length === 0 && (
                 <div className="text-center py-16 text-sm text-gray-400">
                   사진이 없습니다. 위의 &ldquo;사진 추가&rdquo; 버튼으로 추가하세요.
+                </div>
+              )}
+
+              {report.aiGeneratedText && (
+                <div className="bg-purple-50 border border-purple-100 rounded-lg px-4 py-3">
+                  <p className="text-xs font-semibold text-purple-700 mb-1 flex items-center gap-1">
+                    <Sparkles className="h-3.5 w-3.5" />AI 총평 미리보기
+                  </p>
+                  <p className="text-xs text-purple-600 line-clamp-3 leading-relaxed">
+                    {report.aiGeneratedText.replace(/##[^\n]*/g, '').replace(/\*\*/g, '').trim()}
+                  </p>
                 </div>
               )}
 

@@ -4,7 +4,6 @@ import { useMemo } from 'react'
 import { DaySchedule, ITEM_TYPE_COLORS, TRANSPORT_COLORS } from '@/lib/types'
 import MapMock from './MapMock'
 import {
-  APIProvider,
   Map,
   AdvancedMarker,
   Pin,
@@ -93,17 +92,15 @@ export default function TripMap({ day }: TripMapProps) {
     : { lat: 35.6762, lng: 139.6503 }
 
   return (
-    <APIProvider apiKey={API_KEY}>
-      <Map
-        mapId="travel-plan-map"
-        defaultCenter={center}
-        defaultZoom={13}
-        gestureHandling="greedy"
-        disableDefaultUI={false}
-        className="h-full w-full rounded-lg"
-      >
-        <RouteLayer day={day} />
-      </Map>
-    </APIProvider>
+    <Map
+      mapId="travel-plan-map"
+      defaultCenter={center}
+      defaultZoom={13}
+      gestureHandling="greedy"
+      disableDefaultUI={false}
+      className="h-full w-full rounded-lg"
+    >
+      <RouteLayer day={day} />
+    </Map>
   )
 }

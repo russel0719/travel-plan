@@ -8,13 +8,32 @@ import TripCard from '@/components/trip/TripCard'
 import CreateTripDialog from '@/components/trip/CreateTripDialog'
 import LoginPage from '@/components/auth/LoginPage'
 import { Button } from '@/components/ui/button'
-import { Plus, Plane, FlaskConical, LogOut } from 'lucide-react'
+import { Plus, Plane, FlaskConical, LogOut, ArrowUpDown } from 'lucide-react'
 import { SAMPLE_TRIP } from '@/lib/sampleData'
+import { Trip } from '@/lib/types'
+
+type SortKey = 'updatedAt' | 'startDate' | 'title'
+
+const SORT_LABELS: Record<SortKey, string> = {
+  updatedAt: '최근 수정순',
+  startDate: '여행 날짜순',
+  title: '이름순',
+}
+
+function sortTrips(trips: Trip[], key: SortKey): Trip[] {
+  return [...trips].sort((a, b) => {
+    if (key === 'title') return a.title.localeCompare(b.title, 'ko')
+    if (key === 'startDate') return b.startDate.localeCompare(a.startDate)
+    return b.updatedAt.localeCompare(a.updatedAt)
+  })
+}
 
 export default function HomePage() {
   const router = useRouter()
   const { trips, hydrated, hydrate, userId, createTrip, deleteTrip } = useTripStore()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey>('updatedAt')
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
 
   useEffect(() => {
     if (!hydrated) hydrate()
@@ -46,7 +65,6 @@ export default function HomePage() {
     useTripStore.setState({ trips: [], hydrated: false, userId: null })
   }
 
-  // 로딩 중
   if (!hydrated) {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -58,8 +76,9 @@ export default function HomePage() {
     )
   }
 
-  // 로그인 안 됨
   if (!userId) return <LoginPage />
+
+  const sorted = sortTrips(trips, sortKey)
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -108,16 +127,53 @@ export default function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {trips.map((trip) => (
-              <TripCard
-                key={trip.id}
-                trip={trip}
-                onClick={() => router.push(`/trip/${trip.id}`)}
-                onDelete={(e) => handleDelete(e, trip.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-muted-foreground">총 {trips.length}개의 여행</p>
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs gap-1.5"
+                  onClick={() => setSortMenuOpen((v) => !v)}
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  {SORT_LABELS[sortKey]}
+                </Button>
+                {sortMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setSortMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-white border rounded-lg shadow-md py-1 min-w-[130px]">
+                      {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                        <button
+                          key={key}
+                          className={`w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors ${
+                            sortKey === key ? 'font-semibold text-primary' : ''
+                          }`}
+                          onClick={() => { setSortKey(key); setSortMenuOpen(false) }}
+                        >
+                          {SORT_LABELS[key]}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sorted.map((trip) => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  onClick={() => router.push(`/trip/${trip.id}`)}
+                  onDelete={(e) => handleDelete(e, trip.id)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 

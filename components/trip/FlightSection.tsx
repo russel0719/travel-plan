@@ -161,7 +161,7 @@ export default function FlightSection({ flights, onAdd, onUpdate, onDelete }: Fl
 
       {[...outbound, ...inbound].map((flight) => (
         <div key={flight.id} className="rounded-xl border bg-indigo-50/40 p-4 group relative">
-          <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-3 right-3 flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditFlight(flight)}>
               <Pencil className="h-3 w-3" />
             </Button>

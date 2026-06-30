@@ -12,7 +12,7 @@ import TripMap from '@/components/map/TripMap'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { getDayLabel, formatDate } from '@/lib/utils'
 import { ScheduleItem, Trip, Budget, Flight, Accommodation, TravelReport } from '@/lib/types'
-import { CalendarDays, Plane, Wallet, BookOpen, PlusCircle, FileText, Trash2 } from 'lucide-react'
+import { CalendarDays, Plane, Wallet, BookOpen, PlusCircle, FileText, Trash2, Map } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ReportUploadPanel from '@/components/report/ReportUploadPanel'
 import ReportCommentPanel from '@/components/report/ReportCommentPanel'
@@ -35,6 +35,7 @@ export default function TripPage({ params }: PageProps) {
   const [panel, setPanel] = useState<'schedule' | 'info' | 'budget' | 'report'>('schedule')
   // null = 지도 표시, 'upload' = 새 후기 업로드, string = 특정 보고서 코멘트
   const [reportView, setReportView] = useState<null | 'upload' | string>(null)
+  const [showMobileMap, setShowMobileMap] = useState(false)
 
   const openReportView = (view: 'upload' | string) => {
     setPanel('report')
@@ -61,8 +62,8 @@ export default function TripPage({ params }: PageProps) {
       <TripHeader trip={trip} onUpdate={(data) => updateTrip(id, data as Partial<Trip>)} />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* 좌측 패널 - 모바일에서 reportView 활성 시 숨김 */}
-        <div className={`${reportView !== null ? 'hidden md:flex' : 'flex w-full'} md:max-w-sm md:border-r bg-gray-50 flex-col overflow-hidden`}>
+        {/* 좌측 패널 - 모바일에서 reportView 활성 또는 지도 표시 시 숨김 */}
+        <div className={`${reportView !== null || showMobileMap ? 'hidden md:flex' : 'flex w-full'} md:max-w-sm md:border-r bg-gray-50 flex-col overflow-hidden`}>
 
           {/* 패널 전환 탭 */}
           <div className="border-b bg-white px-3 pt-2 pb-1 flex gap-1">
@@ -104,6 +105,13 @@ export default function TripPage({ params }: PageProps) {
                   {trip.reports!.length}
                 </span>
               )}
+            </button>
+            {/* 모바일 전용 지도 토글 버튼 */}
+            <button
+              onClick={() => setShowMobileMap(true)}
+              className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors text-muted-foreground hover:bg-muted ml-auto"
+            >
+              <Map className="h-3.5 w-3.5" />지도
             </button>
           </div>
 
@@ -234,7 +242,20 @@ export default function TripPage({ params }: PageProps) {
         </div>
 
         {/* 우측: 지도 또는 후기 패널 */}
-        <div className={reportView !== null ? 'flex flex-1 overflow-hidden' : 'hidden md:flex flex-1 p-3'}>
+        <div className={reportView !== null || showMobileMap ? 'flex flex-1 overflow-hidden flex-col' : 'hidden md:flex flex-1 p-3'}>
+          {/* 모바일 지도 뷰 헤더 */}
+          {showMobileMap && reportView === null && (
+            <div className="md:hidden border-b bg-white px-3 py-2 flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowMobileMap(false)}
+                className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground"
+              >
+                ← 일정으로
+              </button>
+              <span className="text-xs font-medium flex-1 text-center">{currentDay?.date} 지도</span>
+            </div>
+          )}
+          <div className={showMobileMap && reportView === null ? 'flex flex-1 p-3 overflow-hidden' : 'flex flex-1 overflow-hidden'}>
           {reportView === null ? (
             currentDay && <TripMap day={currentDay} />
           ) : reportView === 'upload' ? (
@@ -251,6 +272,7 @@ export default function TripPage({ params }: PageProps) {
               onBack={closeReportView}
             />
           )}
+          </div>
         </div>
       </div>
     </div>
