@@ -43,9 +43,11 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
     const el = locationInputRef.current
     if (!el) return
 
-    const tryInit = () => {
-      const g = (window as any).google
-      if (!g?.maps?.places?.Autocomplete) return false
+    const getGoogle = () => (window as unknown as { google?: typeof google }).google
+
+    const tryInit = (): google.maps.MapsEventListener | null => {
+      const g = getGoogle()
+      if (!g?.maps?.places?.Autocomplete) return null
 
       const autocomplete = new g.maps.places.Autocomplete(el, {
         fields: ['name', 'geometry'],
@@ -61,14 +63,14 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
       return listener
     }
 
-    let listener: any = tryInit()
+    let listener: google.maps.MapsEventListener | null = tryInit()
     if (!listener) {
       // Google Maps가 아직 로드 중인 경우 잠시 후 재시도
       const timer = setTimeout(() => { listener = tryInit() }, 1000)
       return () => clearTimeout(timer)
     }
     return () => {
-      if (listener) (window as any).google?.maps?.event?.removeListener(listener)
+      if (listener) getGoogle()?.maps?.event?.removeListener(listener)
     }
   }, [open])
 

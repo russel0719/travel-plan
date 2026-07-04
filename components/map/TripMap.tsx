@@ -28,8 +28,8 @@ function RouteLayer({ day }: RouteLayerProps) {
   useEffect(() => {
     if (!map || points.length < 2) return
 
-    const { Polyline } = (window as any).google.maps
-    const lines: any[] = []
+    const { Polyline } = (window as unknown as { google: typeof google }).google.maps
+    const lines: google.maps.Polyline[] = []
 
     for (let i = 0; i < points.length - 1; i++) {
       const from = points[i].location!

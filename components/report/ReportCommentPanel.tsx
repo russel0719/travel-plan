@@ -35,11 +35,13 @@ export default function ReportCommentPanel({ tripId, reportId, onPrint, onBack }
   const addPhotoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (report?.photoMeta) setPhotoMeta(report.photoMeta)
   }, [report?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!report || report.photoMeta.length === 0) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingUrls(true)
     const paths = report.photoMeta.map((p) => p.storagePath)
     getSignedUrls(paths)

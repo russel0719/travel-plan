@@ -33,6 +33,7 @@ export default function ReportPrintPage({ params }: PageProps) {
 
   useEffect(() => {
     if (!report || report.photoMeta.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadingUrls(false)
       return
     }

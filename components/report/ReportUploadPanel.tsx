@@ -37,6 +37,7 @@ export default function ReportUploadPanel({ tripId, onCreated, onBack }: ReportU
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (trip && !title) setTitle(`${trip.title} 여행 후기`)
   }, [trip, title])
 
