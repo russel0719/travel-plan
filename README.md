@@ -88,8 +88,9 @@ travel-plan/
 단일 Supabase 프로젝트에서 스키마 분리 방식으로 애플리케이션을 격리합니다.
 
 - 스키마: `app_travel_plan`
-- 여행 데이터는 `trips` 테이블에 JSON(`data` 컬럼)으로 저장
-- Zustand store가 trips 변경을 감지해 변경된 항목만 Supabase에 upsert/delete
+- 여행 데이터는 엔티티별로 정규화된 테이블에 저장: `trips`(메타데이터), `schedule_items`, `flights`, `accommodations`, `budgets`, `budget_items`, `reports`, `report_day_texts`, `report_photos` — 전부 `trip_id` FK(`ON DELETE CASCADE`) + RLS
+- Zustand store가 trips 변경을 감지해, 변경된 트립은 `upsert_trip` RPC(단일 트랜잭션으로 트립 메타 + 모든 하위 테이블을 원자적으로 replace)를 통해 저장하고, 읽기는 `lib/storage.ts`가 9개 테이블을 조회해 `lib/tripAssembly.ts`에서 기존 `Trip` 타입으로 재조립
+- 레거시 `trips.data`(jsonb 통짜 저장) 컬럼은 롤백 안전망으로 당분간 유지 후 별도 마이그레이션에서 제거 예정
 
 ## 환경 변수 설정
 
