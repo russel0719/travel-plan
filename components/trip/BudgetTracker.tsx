@@ -236,7 +236,7 @@ export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerPro
       <div className="border rounded-lg p-3 space-y-2 bg-muted/20">
         <p className="text-xs font-semibold">예산 항목 추가</p>
         <div className="grid grid-cols-2 gap-2">
-          <Select value={newCategory} onValueChange={(v) => setNewCategory(v as BudgetCategory)}>
+          <Select items={BUDGET_CATEGORY_LABELS} value={newCategory} onValueChange={(v) => setNewCategory(v as BudgetCategory)}>
             <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>

@@ -1,6 +1,6 @@
 'use client'
 
-import { ScheduleItem as ScheduleItemType, ITEM_TYPE_LABELS, ITEM_TYPE_COLORS } from '@/lib/types'
+import { ScheduleItem as ScheduleItemType, ITEM_TYPE_LABELS, ITEM_TYPE_COLORS, MEAL_TYPE_LABELS, CHECK_TYPE_LABELS } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Pencil, Trash2, GripVertical, MapPin, Clock } from 'lucide-react'
@@ -52,9 +52,29 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
             >
               {ITEM_TYPE_LABELS[item.type]}
             </Badge>
+            {item.mealType && (
+              <Badge variant="outline" className="text-xs py-0 px-1.5">
+                {MEAL_TYPE_LABELS[item.mealType]}
+              </Badge>
+            )}
+            {item.checkType && (
+              <Badge variant="outline" className="text-xs py-0 px-1.5">
+                {CHECK_TYPE_LABELS[item.checkType]}
+              </Badge>
+            )}
+            {item.reservationNeeded && (
+              <Badge variant="outline" className="text-xs py-0 px-1.5 text-amber-600 border-amber-600">
+                예약 필요
+              </Badge>
+            )}
           </div>
           <p className="font-medium text-sm mt-0.5 truncate">{item.title}</p>
-          {item.location?.name && (
+          {item.fromLocation?.name && item.location?.name ? (
+            <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5">
+              <MapPin className="h-3 w-3 shrink-0" />
+              {item.fromLocation.name} → {item.location.name}
+            </p>
+          ) : item.location?.name && (
             <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5">
               <MapPin className="h-3 w-3 shrink-0" />
               {item.location.name}

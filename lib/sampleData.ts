@@ -131,7 +131,7 @@ export const SAMPLE_TRIP: Trip = {
         },
         {
           id: 's1-6',
-          type: 'activity',
+          type: 'attraction',
           title: 'DiCE 오사카 — 오버워치 콜라보 카페',
           time: '20:30',
           duration: 60,
@@ -157,7 +157,7 @@ export const SAMPLE_TRIP: Trip = {
       items: [
         {
           id: 's2-1',
-          type: 'activity',
+          type: 'attraction',
           title: '기상 및 준비',
           time: '07:00',
           duration: 60,
@@ -290,7 +290,7 @@ export const SAMPLE_TRIP: Trip = {
       items: [
         {
           id: 's3-1',
-          type: 'activity',
+          type: 'attraction',
           title: '기상 및 준비',
           time: '07:00',
           duration: 60,
@@ -327,7 +327,7 @@ export const SAMPLE_TRIP: Trip = {
         },
         {
           id: 's3-5',
-          type: 'activity',
+          type: 'attraction',
           title: '야마자키 증류소 투어',
           time: '11:00',
           duration: 60,
@@ -357,7 +357,7 @@ export const SAMPLE_TRIP: Trip = {
         },
         {
           id: 's3-8',
-          type: 'activity',
+          type: 'attraction',
           title: '산토리 맥주공장 투어',
           time: '13:50',
           duration: 90,
@@ -414,7 +414,7 @@ export const SAMPLE_TRIP: Trip = {
       items: [
         {
           id: 's4-1',
-          type: 'activity',
+          type: 'attraction',
           title: '기상 및 짐 정리',
           time: '07:00',
           duration: 60,

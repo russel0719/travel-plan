@@ -1,6 +1,8 @@
-export type ScheduleItemType = 'attraction' | 'restaurant' | 'hotel' | 'transport' | 'activity'
+export type ScheduleItemType = 'attraction' | 'restaurant' | 'hotel' | 'transport'
 export type TransportType = 'walk' | 'public' | 'car' | 'taxi' | 'flight'
 export type BudgetCategory = 'flight' | 'hotel' | 'food' | 'transport' | 'activity' | 'shopping' | 'etc'
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+export type CheckType = 'checkin' | 'checkout'
 
 export interface Location {
   name: string
@@ -20,6 +22,12 @@ export interface ScheduleItem {
   notes?: string
   price?: number
   currency?: string
+  // 카테고리 전용 필드 — CATEGORY_EXTRA_FIELDS 매핑에 따라 폼에서 조건부로 노출된다
+  mealType?: MealType                 // restaurant 전용 — 식사 유형
+  reservationNeeded?: boolean         // restaurant / attraction / hotel — 예약 필요 여부
+  checkType?: CheckType               // hotel 전용 — 체크인/체크아웃 구분
+  fromLocation?: Location             // transport 전용 — 출발지 (location은 도착지로 사용)
+  transportMode?: TransportType       // transport 전용 — 이 구간 자체의 이동수단 (transportToNext는 다음 일정으로 이동할 때의 수단)
 }
 
 export interface DaySchedule {
@@ -111,7 +119,6 @@ export const ITEM_TYPE_LABELS: Record<ScheduleItemType, string> = {
   restaurant: '식당',
   hotel: '숙박',
   transport: '이동',
-  activity: '액티비티',
 }
 
 export const BUDGET_CATEGORY_LABELS: Record<BudgetCategory, string> = {
@@ -155,7 +162,6 @@ export const ITEM_TYPE_COLORS: Record<ScheduleItemType, string> = {
   restaurant: '#f59e0b',
   hotel: '#8b5cf6',
   transport: '#6b7280',
-  activity: '#10b981',
 }
 
 export const ITEM_TYPE_TO_BUDGET: Record<ScheduleItemType, BudgetCategory> = {
@@ -163,5 +169,24 @@ export const ITEM_TYPE_TO_BUDGET: Record<ScheduleItemType, BudgetCategory> = {
   restaurant: 'food',
   hotel: 'hotel',
   transport: 'transport',
-  activity: 'activity',
+}
+
+export const MEAL_TYPE_LABELS: Record<MealType, string> = {
+  breakfast: '아침',
+  lunch: '점심',
+  dinner: '저녁',
+  snack: '간식/카페',
+}
+
+export const CHECK_TYPE_LABELS: Record<CheckType, string> = {
+  checkin: '체크인',
+  checkout: '체크아웃',
+}
+
+// 카테고리별로 ScheduleForm에서 조건부로 노출할 전용 필드 키 목록
+export const CATEGORY_EXTRA_FIELDS: Record<ScheduleItemType, string[]> = {
+  attraction: ['reservationNeeded'],
+  restaurant: ['mealType', 'reservationNeeded'],
+  hotel: ['checkType', 'reservationNeeded'],
+  transport: ['fromLocation', 'transportMode'],
 }
