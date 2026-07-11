@@ -262,12 +262,12 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
           {showFromLocation && (
             <div key="from-location" className="space-y-1.5">
               <Label>출발지</Label>
-              <div ref={fromLocationContainerRef} className="w-full" />
+              <div ref={fromLocationContainerRef} className="w-full min-w-0 overflow-hidden" />
             </div>
           )}
           <div key="location" className="space-y-1.5">
             <Label>{showFromLocation ? '도착지' : '장소 검색'}</Label>
-            <div ref={locationContainerRef} className="w-full" />
+            <div ref={locationContainerRef} className="w-full min-w-0 overflow-hidden" />
             {locationLat !== 0 && (
               <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
             )}

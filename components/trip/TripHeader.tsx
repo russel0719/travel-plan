@@ -60,11 +60,11 @@ export default function TripHeader({ trip, onUpdate }: TripHeaderProps) {
             </Button>
           </div>
         )}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-          <span>{trip.destination}</span>
-          <span>·</span>
-          <span>{formatDate(trip.startDate)} ~ {formatDate(trip.endDate)}</span>
-          {trip.isInternational && <Badge variant="secondary" className="text-xs py-0">해외</Badge>}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 min-w-0">
+          <span className="truncate">{trip.destination}</span>
+          <span className="shrink-0">·</span>
+          <span className="shrink-0">{formatDate(trip.startDate)} ~ {formatDate(trip.endDate)}</span>
+          {trip.isInternational && <Badge variant="secondary" className="text-xs py-0 shrink-0">해외</Badge>}
         </div>
       </div>
       <Button

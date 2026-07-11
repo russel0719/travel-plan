@@ -191,12 +191,12 @@ export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerPro
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                      <span className="text-sm">{item.label || BUDGET_CATEGORY_LABELS[item.category]}</span>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-sm truncate">{item.label || BUDGET_CATEGORY_LABELS[item.category]}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <span className={`text-xs ${over ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
                         ₩{actual.toLocaleString()}
                       </span>

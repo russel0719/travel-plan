@@ -49,7 +49,13 @@ export function usePlaceAutocompleteElement(
     const element = new google.maps.places.PlaceAutocompleteElement({})
     element.value = initialValue
     element.placeholder = placeholder
+    // 이 커스텀 엘리먼트는 width:100%만 주면 내부 콘텐츠 기준의 intrinsic 너비(약 400px)를
+    // 그대로 고집해 부모/뷰포트보다 넓게 렌더링된다(좁은 모바일 화면에서 다이얼로그 자체가
+    // 화면 밖으로 밀려나는 원인이었음). display:block + max-width:100%로 명시적으로 눌러준다.
+    element.style.display = 'block'
     element.style.width = '100%'
+    element.style.maxWidth = '100%'
+    element.style.boxSizing = 'border-box'
     elementRef.current = element
 
     const handleSelect = (event: Event) => {

@@ -70,16 +70,16 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
           </div>
           <p className="font-medium text-sm mt-0.5 truncate">{item.title}</p>
           {item.fromLocation?.name && item.location?.name ? (
-            <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5">
+            <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />
-              {item.fromLocation.name} → {item.location.name}
+              <span className="truncate">{item.fromLocation.name} → {item.location.name}</span>
             </p>
           ) : item.location?.name && (
-            <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5">
+            <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />
-              {item.location.name}
+              <span className="truncate">{item.location.name}</span>
               {item.placeRating != null && (
-                <span className="text-amber-600 font-medium ml-1">★ {item.placeRating.toFixed(1)}</span>
+                <span className="text-amber-600 font-medium ml-1 shrink-0">★ {item.placeRating.toFixed(1)}</span>
               )}
             </p>
           )}
@@ -98,8 +98,14 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
           </div>
         </div>
         {item.placePhotoUrl && (
+          // 모바일은 화면이 좁아 썸네일이 콘텐츠 영역을 심하게 눌러 레이아웃 균형이 깨진다 —
+          // sm 이상(데스크톱)에서만 보여주고, 세로 중앙 정렬로 카드 높이와 무관하게 안정적으로 배치한다.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.placePhotoUrl} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />
+          <img
+            src={item.placePhotoUrl}
+            alt=""
+            className="hidden sm:block h-10 w-10 self-center rounded-md object-cover shrink-0"
+          />
         )}
         {/* 모바일: 항상 표시 / 데스크톱: hover 시 표시 */}
         <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 shrink-0">

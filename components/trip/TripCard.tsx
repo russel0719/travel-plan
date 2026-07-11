@@ -67,9 +67,9 @@ export default function TripCard({ trip, onClick, onDelete }: TripCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-1.5 text-sm text-muted-foreground">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
-          <span>{trip.destination}</span>
+          <span className="truncate">{trip.destination}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 shrink-0" />
