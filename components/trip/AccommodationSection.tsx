@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Accommodation } from '@/lib/types'
+import { usePlaceAutocompleteElement } from '@/hooks/usePlaceAutocompleteElement'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +20,8 @@ interface AccommodationSectionProps {
 const EMPTY: Omit<Accommodation, 'id'> = {
   name: '',
   address: '',
+  lat: undefined,
+  lng: undefined,
   checkInDate: '',
   checkInTime: '',
   checkOutDate: '',
@@ -43,6 +46,23 @@ function AccommodationForm({
   const [form, setForm] = useState<Omit<Accommodation, 'id'>>({ ...EMPTY, ...initial })
   const f = (key: keyof typeof form, val: unknown) => setForm((p) => ({ ...p, [key]: val }))
 
+  const { containerRef: addressContainerRef } = usePlaceAutocompleteElement(
+    open,
+    'Osaka, Chuo-ku',
+    initial?.address ?? '',
+    (place) => {
+      f('address', place.formattedAddress ?? place.name)
+      f('lat', place.lat)
+      f('lng', place.lng)
+    },
+    (value) => {
+      f('address', value)
+      f('lat', undefined)
+      f('lng', undefined)
+    },
+    ['formattedAddress']
+  )
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -56,7 +76,10 @@ function AccommodationForm({
           </div>
           <div className="space-y-1.5">
             <Label>주소</Label>
-            <Input placeholder="Osaka, Chuo-ku" value={form.address ?? ''} onChange={(e) => f('address', e.target.value)} />
+            <div ref={addressContainerRef} className="w-full" />
+            {form.lat != null && (
+              <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

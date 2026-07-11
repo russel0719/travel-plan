@@ -140,6 +140,7 @@ export default function TripPage({ params }: PageProps) {
                   <TabsContent key={idx} value={String(idx)} className="p-3 mt-0">
                     <DaySchedule
                       day={day}
+                      accommodations={trip.accommodations}
                       onAddItem={(item) => addScheduleItem(id, day.date, item)}
                       onUpdateItem={(itemId, data) => updateScheduleItem(id, day.date, itemId, data)}
                       onDeleteItem={(itemId) => deleteScheduleItem(id, day.date, itemId)}

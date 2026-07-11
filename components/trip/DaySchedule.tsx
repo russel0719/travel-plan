@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { DaySchedule as DayScheduleType, ScheduleItem } from '@/lib/types'
+import { DaySchedule as DayScheduleType, ScheduleItem, Accommodation } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import ScheduleItemCard from './ScheduleItem'
 import ScheduleForm from './ScheduleForm'
+import RouteConnector from './RouteConnector'
 import {
   DndContext,
   closestCenter,
@@ -25,6 +26,7 @@ import {
 
 interface DayScheduleProps {
   day: DayScheduleType
+  accommodations?: Accommodation[]
   onAddItem: (item: Omit<ScheduleItem, 'id'>) => void
   onUpdateItem: (itemId: string, data: Partial<ScheduleItem>) => void
   onDeleteItem: (itemId: string) => void
@@ -33,6 +35,7 @@ interface DayScheduleProps {
 
 export default function DaySchedule({
   day,
+  accommodations,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
@@ -67,14 +70,21 @@ export default function DaySchedule({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={day.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-1.5">
-            {day.items.map((item) => (
-              <ScheduleItemCard
-                key={item.id}
-                item={item}
-                onEdit={() => setEditItem(item)}
-                onDelete={() => onDeleteItem(item.id)}
-              />
-            ))}
+            {day.items.map((item, idx) => {
+              const next = day.items[idx + 1]
+              return (
+                <div key={item.id}>
+                  <ScheduleItemCard
+                    item={item}
+                    onEdit={() => setEditItem(item)}
+                    onDelete={() => onDeleteItem(item.id)}
+                  />
+                  {next && item.location && next.location && item.transportToNext && (
+                    <RouteConnector origin={item.location} destination={next.location} mode={item.transportToNext} />
+                  )}
+                </div>
+              )
+            })}
           </div>
         </SortableContext>
       </DndContext>
@@ -91,6 +101,8 @@ export default function DaySchedule({
 
       <ScheduleForm
         open={addOpen}
+        accommodations={accommodations}
+        dayDate={day.date}
         onClose={() => setAddOpen(false)}
         onSave={(data) => {
           onAddItem(data)
@@ -102,6 +114,8 @@ export default function DaySchedule({
         <ScheduleForm
           open={!!editItem}
           initial={editItem}
+          accommodations={accommodations}
+          dayDate={day.date}
           onClose={() => setEditItem(null)}
           onSave={(data) => {
             onUpdateItem(editItem.id, data)

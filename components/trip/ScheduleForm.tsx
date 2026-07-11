@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import {
   ScheduleItem,
   ScheduleItemType,
   TransportType,
+  Accommodation,
   ITEM_TYPE_LABELS,
   TRANSPORT_LABELS,
   CATEGORY_EXTRA_FIELDS,
@@ -13,6 +14,7 @@ import {
   MealType,
   CheckType,
 } from '@/lib/types'
+import { usePlaceAutocompleteElement } from '@/hooks/usePlaceAutocompleteElement'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,6 +24,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 interface ScheduleFormProps {
   open: boolean
   initial?: Partial<ScheduleItem>
+  accommodations?: Accommodation[]
+  dayDate?: string
   onClose: () => void
   onSave: (data: Omit<ScheduleItem, 'id'>) => void
 }
@@ -39,6 +43,8 @@ const EMPTY: Omit<ScheduleItem, 'id'> = {
   reservationNeeded: undefined,
   checkType: undefined,
   transportMode: undefined,
+  placeRating: undefined,
+  placePhotoUrl: undefined,
 }
 
 function hasField(type: ScheduleItemType, field: string): boolean {
@@ -74,58 +80,7 @@ const CATEGORY_PLACEHOLDERS: Record<ScheduleItemType, { title: string; location:
   },
 }
 
-// Google Places Autocomplete를 인풋에 연결한다 — API가 아직 로드 중이면 잠시 후 재시도.
-// TODO: google.maps.places.Autocomplete는 2025-03-01부로 신규 고객에게 제공되지 않는 legacy API로,
-// 이후 버그 수정도 없다. 아직 폐지 예정은 없으나(최소 12개월 사전 고지), 후속 버전에서 웹 컴포넌트인
-// google.maps.places.PlaceAutocompleteElement(<gmp-place-autocomplete>)로 마이그레이션 검토 필요.
-// 단, 그 컴포넌트는 Shadow DOM에 자체 입력창을 렌더링하므로 지금의 Input 디자인과 다르게 보이고
-// place_changed → gmp-select 이벤트, getPlace() → place.fetchFields() 비동기 호출로 API 형태도 바뀐다.
-function usePlacesAutocomplete(
-  ref: React.RefObject<HTMLInputElement | null>,
-  active: boolean,
-  onPlace: (name: string, lat: number, lng: number) => void
-) {
-  const onPlaceRef = useRef(onPlace)
-  useEffect(() => {
-    onPlaceRef.current = onPlace
-  })
-
-  useEffect(() => {
-    if (!active) return
-    const el = ref.current
-    if (!el) return
-
-    const getGoogle = () => (window as unknown as { google?: typeof google }).google
-
-    const tryInit = (): google.maps.MapsEventListener | null => {
-      const g = getGoogle()
-      if (!g?.maps?.places?.Autocomplete) return null
-
-      const autocomplete = new g.maps.places.Autocomplete(el, {
-        fields: ['name', 'geometry'],
-      })
-      const listener = autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace()
-        if (place.geometry?.location) {
-          onPlaceRef.current(place.name ?? '', place.geometry.location.lat(), place.geometry.location.lng())
-        }
-      })
-      return listener
-    }
-
-    let listener: google.maps.MapsEventListener | null = tryInit()
-    if (!listener) {
-      // Google Maps가 아직 로드 중인 경우 잠시 후 재시도
-      const timer = setTimeout(() => { listener = tryInit() }, 1000)
-      return () => clearTimeout(timer)
-    }
-    return () => {
-      if (listener) getGoogle()?.maps?.event?.removeListener(listener)
-    }
-  }, [active, ref])
-}
-
-export default function ScheduleForm({ open, initial, onClose, onSave }: ScheduleFormProps) {
+export default function ScheduleForm({ open, initial, accommodations, dayDate, onClose, onSave }: ScheduleFormProps) {
   const [form, setForm] = useState<Omit<ScheduleItem, 'id'>>({
     ...EMPTY,
     ...initial,
@@ -134,24 +89,43 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
   const [locationName, setLocationName] = useState(initial?.location?.name ?? '')
   const [locationLat, setLocationLat] = useState(initial?.location?.lat ?? 0)
   const [locationLng, setLocationLng] = useState(initial?.location?.lng ?? 0)
-  const locationInputRef = useRef<HTMLInputElement>(null)
 
   const [fromLocationName, setFromLocationName] = useState(initial?.fromLocation?.name ?? '')
   const [fromLocationLat, setFromLocationLat] = useState(initial?.fromLocation?.lat ?? 0)
   const [fromLocationLng, setFromLocationLng] = useState(initial?.fromLocation?.lng ?? 0)
-  const fromLocationInputRef = useRef<HTMLInputElement>(null)
 
-  usePlacesAutocomplete(locationInputRef, open, (name, lat, lng) => {
-    setLocationName(name)
-    setLocationLat(lat)
-    setLocationLng(lng)
-  })
+  const { containerRef: locationContainerRef, setValue: setLocationValue } = usePlaceAutocompleteElement(
+    open,
+    CATEGORY_PLACEHOLDERS[form.type].location,
+    initial?.location?.name ?? '',
+    (place) => {
+      setLocationName(place.name)
+      setLocationLat(place.lat)
+      setLocationLng(place.lng)
+      setForm((prev) => ({ ...prev, placeRating: place.rating, placePhotoUrl: place.photoUrl }))
+    },
+    (value) => {
+      setLocationName(value)
+      setLocationLat(0)
+      setLocationLng(0)
+    }
+  )
 
-  usePlacesAutocomplete(fromLocationInputRef, open && hasField(form.type, 'fromLocation'), (name, lat, lng) => {
-    setFromLocationName(name)
-    setFromLocationLat(lat)
-    setFromLocationLng(lng)
-  })
+  const { containerRef: fromLocationContainerRef } = usePlaceAutocompleteElement(
+    open && hasField(form.type, 'fromLocation'),
+    '예: 나리타 공항',
+    initial?.fromLocation?.name ?? '',
+    (place) => {
+      setFromLocationName(place.name)
+      setFromLocationLat(place.lat)
+      setFromLocationLng(place.lng)
+    },
+    (value) => {
+      setFromLocationName(value)
+      setFromLocationLat(0)
+      setFromLocationLng(0)
+    }
+  )
 
   const resetLocations = () => {
     setLocationName('')
@@ -160,6 +134,30 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
     setFromLocationName('')
     setFromLocationLat(0)
     setFromLocationLng(0)
+  }
+
+  // 일정 날짜(dayDate)의 체크인~체크아웃 기간에 겹치는 숙소들.
+  const dayMatchedAccommodations = dayDate
+    ? (accommodations ?? []).filter((a) => a.checkInDate <= dayDate && dayDate <= a.checkOutDate)
+    : []
+
+  const applyAccommodation = (acc: Accommodation) => {
+    setLocationValue(acc.name)
+    setLocationName(acc.name)
+    setLocationLat(acc.lat ?? 0)
+    setLocationLng(acc.lng ?? 0)
+    setForm((prev) => {
+      const notesParts = [
+        acc.bookingRef ? `예약번호 ${acc.bookingRef}` : null,
+        acc.phone ? `연락처 ${acc.phone}` : null,
+      ].filter((v): v is string => !!v)
+      return {
+        ...prev,
+        checkType:
+          dayDate === acc.checkInDate ? 'checkin' : dayDate === acc.checkOutDate ? 'checkout' : prev.checkType,
+        notes: prev.notes?.trim() ? prev.notes : notesParts.length ? notesParts.join(' / ') : prev.notes,
+      }
+    })
   }
 
   const handleSave = () => {
@@ -188,6 +186,8 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
   const showReservation = hasField(form.type, 'reservationNeeded')
   const showFromLocation = hasField(form.type, 'fromLocation')
   const showTransportMode = hasField(form.type, 'transportMode')
+  const showAccommodationPicker =
+    form.type === 'hotel' && dayMatchedAccommodations.length !== 1 && (accommodations?.length ?? 0) > 0
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
@@ -196,13 +196,19 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
           <DialogTitle>{initial?.title ? '일정 수정' : '일정 추가'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 pt-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div key="category-time" className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>카테고리</Label>
               <Select
                 items={ITEM_TYPE_LABELS}
                 value={form.type}
-                onValueChange={(v) => setForm({ ...form, type: v as ScheduleItemType })}
+                onValueChange={(v) => {
+                  const type = v as ScheduleItemType
+                  setForm({ ...form, type })
+                  if (type === 'hotel' && !locationName.trim() && dayMatchedAccommodations.length === 1) {
+                    applyAccommodation(dayMatchedAccommodations[0])
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -223,7 +229,7 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
               />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div key="title" className="space-y-1.5">
             <Label>제목 *</Label>
             <Input
               placeholder={CATEGORY_PLACEHOLDERS[form.type].title}
@@ -231,40 +237,43 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
-          {showFromLocation && (
-            <div className="space-y-1.5">
-              <Label>출발지</Label>
-              <Input
-                ref={fromLocationInputRef}
-                placeholder="예: 나리타 공항"
-                value={fromLocationName}
-                onChange={(e) => {
-                  setFromLocationName(e.target.value)
-                  setFromLocationLat(0)
-                  setFromLocationLng(0)
+          {showAccommodationPicker && (
+            <div key="accommodation-picker" className="space-y-1.5">
+              <Label>숙소 불러오기</Label>
+              <Select
+                items={Object.fromEntries((accommodations ?? []).map((a) => [a.id, a.name]))}
+                value=""
+                onValueChange={(v) => {
+                  const acc = (accommodations ?? []).find((a) => a.id === v)
+                  if (acc) applyAccommodation(acc)
                 }}
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="등록된 숙소에서 불러오기" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(accommodations ?? []).map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
-          <div className="space-y-1.5">
+          {showFromLocation && (
+            <div key="from-location" className="space-y-1.5">
+              <Label>출발지</Label>
+              <div ref={fromLocationContainerRef} className="w-full" />
+            </div>
+          )}
+          <div key="location" className="space-y-1.5">
             <Label>{showFromLocation ? '도착지' : '장소 검색'}</Label>
-            <Input
-              ref={locationInputRef}
-              placeholder={CATEGORY_PLACEHOLDERS[form.type].location}
-              value={locationName}
-              onChange={(e) => {
-                setLocationName(e.target.value)
-                // 직접 타이핑 시 좌표 초기화
-                setLocationLat(0)
-                setLocationLng(0)
-              }}
-            />
+            <div ref={locationContainerRef} className="w-full" />
             {locationLat !== 0 && (
               <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
             )}
           </div>
           {(showMealType || showCheckType) && (
-            <div className="grid grid-cols-2 gap-3">
+            <div key="meal-check-row" className="grid grid-cols-2 gap-3">
               {showMealType && (
                 <div className="space-y-1.5">
                   <Label>식사 유형</Label>
@@ -308,7 +317,7 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
             </div>
           )}
           {showTransportMode && (
-            <div className="space-y-1.5">
+            <div key="transport-mode" className="space-y-1.5">
               <Label>이동수단</Label>
               <Select
                 items={TRANSPORT_SELECT_ITEMS}
@@ -329,6 +338,7 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
           )}
           {showReservation && (
             <Button
+              key="reservation"
               type="button"
               variant="outline"
               className={form.reservationNeeded ? 'border-primary bg-primary/10 text-primary' : ''}
@@ -337,7 +347,7 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
               예약 필요{form.reservationNeeded ? ' ✓' : ''}
             </Button>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div key="duration-transport-next" className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>소요시간 (분)</Label>
               <Input
@@ -367,7 +377,7 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div key="price-currency" className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>금액</Label>
               <Input
@@ -387,7 +397,7 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
               />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div key="notes" className="space-y-1.5">
             <Label>메모</Label>
             <Input
               placeholder={CATEGORY_PLACEHOLDERS[form.type].notes}
@@ -395,7 +405,7 @@ export default function ScheduleForm({ open, initial, onClose, onSave }: Schedul
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          <div key="actions" className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={handleClose}>취소</Button>
             <Button onClick={handleSave} disabled={!form.title.trim()}>저장</Button>
           </div>

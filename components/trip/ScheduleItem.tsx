@@ -78,6 +78,9 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
             <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5">
               <MapPin className="h-3 w-3 shrink-0" />
               {item.location.name}
+              {item.placeRating != null && (
+                <span className="text-amber-600 font-medium ml-1">★ {item.placeRating.toFixed(1)}</span>
+              )}
             </p>
           )}
           {item.notes && (
@@ -94,6 +97,10 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
             )}
           </div>
         </div>
+        {item.placePhotoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.placePhotoUrl} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />
+        )}
         {/* 모바일: 항상 표시 / 데스크톱: hover 시 표시 */}
         <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 shrink-0">
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onEdit}>

@@ -61,6 +61,8 @@ export interface ScheduleItemRow {
   reservation_needed: boolean | null
   check_type: string | null
   transport_mode: string | null
+  place_rating: number | string | null
+  place_photo_url: string | null
 }
 
 export interface FlightRow {
@@ -85,6 +87,8 @@ export interface AccommodationRow {
   trip_id: string
   name: string
   address: string | null
+  lat: number | string | null
+  lng: number | string | null
   check_in_date: string
   check_in_time: string | null
   check_out_date: string
@@ -186,6 +190,8 @@ function toScheduleItem(row: ScheduleItemRow): ScheduleItem {
     checkType: (row.check_type as CheckType | null) ?? undefined,
     fromLocation: toLocation(row.from_location_name, row.from_location_lat, row.from_location_lng, row.from_location_address),
     transportMode: (row.transport_mode as TransportType | null) ?? undefined,
+    placeRating: toOptionalNumber(row.place_rating),
+    placePhotoUrl: row.place_photo_url ?? undefined,
   }
 }
 
@@ -227,6 +233,8 @@ function toAccommodation(row: AccommodationRow): Accommodation {
     id: row.id,
     name: row.name,
     address: row.address ?? undefined,
+    lat: toOptionalNumber(row.lat),
+    lng: toOptionalNumber(row.lng),
     checkInDate: row.check_in_date,
     checkInTime: row.check_in_time ?? undefined,
     checkOutDate: row.check_out_date,

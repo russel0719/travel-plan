@@ -12,7 +12,8 @@
 
 ### 항공·숙박 관리
 - 출발편/귀국편 항공권 정보 입력 및 예약 번호 관리
-- 숙소 체크인/체크아웃 일정 및 예약 정보 관리
+- 숙소 체크인/체크아웃 일정 및 예약 정보 관리, 주소는 Google 장소 검색으로 좌표까지 저장
+- 일정 추가에서 카테고리를 "숙박"으로 바꾸면 해당 날짜에 겹치는 숙소 정보를 자동으로(애매하면 선택지로) 불러옴
 
 ### 예산 추적
 - 카테고리별(항공·숙박·식비·교통·관광·쇼핑·기타) 예산 설정
@@ -21,7 +22,11 @@
 
 ### 지도 시각화
 - Google Maps에 일정 장소 마커 표시
-- 장소 간 이동 경로 동선 시각화
+- Google Routes API로 계산한 실제 도로 경로를 동선으로 표시(직선 폴백 지원)
+- 일정 목록에서도 연속된 두 일정 사이 실제 이동시간/거리 표시
+
+### 장소 정보 (Google Places)
+- 관광/식당 등 장소 선택 시 평점·대표 사진을 함께 가져와 일정 카드에 표시
 
 ### AI 여행 후기
 - 사진 업로드 및 날짜별 배치
@@ -63,16 +68,22 @@ travel-plan/
 │   │   └── report/[reportId]/
 │   │       ├── page.tsx                # 후기 상세
 │   │       └── print/page.tsx          # 후기 인쇄
-│   └── api/generate-report/route.ts    # AI 후기 생성 엔드포인트
+│   └── api/
+│       ├── generate-report/route.ts    # AI 후기 생성 엔드포인트
+│       └── compute-route/route.ts      # Google Routes API 서버 프록시
 ├── components/
 │   ├── auth/LoginPage.tsx
 │   ├── map/TripMap.tsx
 │   ├── report/                         # 후기 업로드·코멘트 패널
 │   ├── trip/                           # 일정·항공·숙박·예산 컴포넌트
 │   └── ui/                             # shadcn/ui 기반 공통 컴포넌트
+├── hooks/
+│   └── usePlaceAutocompleteElement.ts  # Google Places 장소 검색 공용 훅
 ├── lib/
 │   ├── types.ts                        # Trip, ScheduleItem 등 타입 정의
 │   ├── storage.ts                      # Supabase CRUD
+│   ├── tripAssembly.ts                 # 정규화 테이블 → Trip 재조립
+│   ├── routes.ts                       # Routes API 클라이언트 헬퍼
 │   ├── supabase.ts                     # Supabase 클라이언트
 │   └── utils.ts
 ├── store/
@@ -101,12 +112,17 @@ travel-plan/
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Google Maps
+# Google Maps (브라우저용 — Places API (New) 활성화 필요)
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+
+# Google Routes API (서버 전용 — NEXT_PUBLIC_ 접두사 없음, 별도 키로 발급하고 Routes API 활성화 필요)
+GOOGLE_ROUTES_API_KEY=your_google_routes_api_key
 
 # NVIDIA API (AI 후기 생성)
 NVIDIA_API_KEY=your_nvidia_api_key
 ```
+
+`GOOGLE_ROUTES_API_KEY`가 없어도 앱은 정상 동작합니다 — 실제 이동시간/거리·도로 경로 기능만 조용히 비활성화되고(직선 동선으로 폴백), 에러가 나지 않습니다.
 
 ## 로컬 개발
 
