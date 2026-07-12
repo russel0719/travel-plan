@@ -9,6 +9,8 @@ interface TripStore {
   trips: Trip[]
   hydrated: boolean
   userId: string | null
+  loadError: string | null
+  syncError: string | null
   hydrate: () => Promise<void>
   createTrip: (data: { title: string; destination: string; startDate: string; endDate: string; isInternational: boolean }) => Trip
   updateTrip: (id: string, data: Partial<Omit<Trip, 'id' | 'createdAt'>>) => void
@@ -41,6 +43,8 @@ export const useTripStore = create<TripStore>()(
     trips: [],
     hydrated: false,
     userId: null,
+    loadError: null,
+    syncError: null,
 
     hydrate: async () => {
       if (hydrating || useTripStore.getState().hydrated) return
@@ -63,16 +67,23 @@ export const useTripStore = create<TripStore>()(
           })
         }
 
-        // 첫 로그인 시 localStorage 데이터 자동 이전
+        // 첫 로그인 시 localStorage 데이터 자동 이전 — 원격 저장이 "전부" 성공했을 때만
+        // 로컬 백업을 지운다. (예전에는 upsert 실패 여부와 무관하게 무조건 clearLocalTrips()를
+        // 호출해, 서버 저장이 실패해도 로컬 백업까지 사라져 데이터가 유실될 수 있었다.)
         const localTrips = getLocalTrips()
         if (localTrips.length > 0) {
-          await Promise.all(localTrips.map((t) => upsertTrip(t, user.id)))
-          clearLocalTrips()
+          const results = await Promise.allSettled(localTrips.map((t) => upsertTrip(t, user.id)))
+          const allOk = results.every((r) => r.status === 'fulfilled' && r.value.ok)
+          if (allOk) {
+            clearLocalTrips()
+          } else {
+            set({ syncError: '이 기기에 저장된 여행 일부를 서버로 옮기지 못했습니다. 데이터는 기기에 그대로 보관되어 있습니다.' })
+          }
         }
 
-        const trips = await loadTrips(user.id)
+        const { trips, error } = await loadTrips(user.id)
         previousTrips = [...trips]
-        set({ trips, hydrated: true, userId: user.id })
+        set({ trips, hydrated: true, userId: user.id, loadError: error })
       } finally {
         hydrating = false
       }
@@ -273,7 +284,15 @@ useTripStore.subscribe(
 
     previousTrips = [...trips]
 
-    changed.forEach((trip) => upsertTrip(trip, userId))
-    deletedIds.forEach((id) => removeTrip(id))
+    changed.forEach((trip) => {
+      upsertTrip(trip, userId).then((r) => {
+        if (!r.ok) useTripStore.setState({ syncError: `"${trip.title}" 저장에 실패했습니다: ${r.error}` })
+      })
+    })
+    deletedIds.forEach((id) => {
+      removeTrip(id).then((r) => {
+        if (!r.ok) useTripStore.setState({ syncError: `삭제에 실패했습니다: ${r.error}` })
+      })
+    })
   }
 )
