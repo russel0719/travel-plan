@@ -15,7 +15,9 @@ import {
   CheckType,
 } from '@/lib/types'
 import PlaceAutocompleteInput from '@/components/place/PlaceAutocompleteInput'
+import PlaceMapPicker from '@/components/place/PlaceMapPicker'
 import { SelectedPlace } from '@/lib/places'
+import { MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,6 +52,8 @@ const EMPTY: Omit<ScheduleItem, 'id'> = {
 function hasField(type: ScheduleItemType, field: string): boolean {
   return CATEGORY_EXTRA_FIELDS[type].includes(field)
 }
+
+const MAPS_ENABLED = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
 // Select.Root에 items를 넘겨야 트리거에 raw value 대신 라벨이 표시된다
 const TRANSPORT_SELECT_ITEMS: Record<string, string> = { '': '선택 안함', ...TRANSPORT_LABELS }
@@ -94,11 +98,35 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
   const [fromLocationLat, setFromLocationLat] = useState(initial?.fromLocation?.lat ?? 0)
   const [fromLocationLng, setFromLocationLng] = useState(initial?.fromLocation?.lng ?? 0)
 
+  const [mapOpen, setMapOpen] = useState(false)
+  // 좌표가 이름과 독립적으로 확정된 것인지. 검색으로 고른 좌표는 이름과 한 쌍이라 이름을 고치면
+  // 더 이상 그 장소가 아니므로 무효화하는 게 맞다. 반면 지도에서 찍었거나 숙소에서 가져온 좌표는
+  // "여기"라는 뜻이라 이름을 뭐라고 적든 살아남아야 한다.
+  const [coordsPinned, setCoordsPinned] = useState(false)
+
   const selectLocation = (place: SelectedPlace) => {
     setLocationName(place.name)
     setLocationLat(place.lat)
     setLocationLng(place.lng)
+    setCoordsPinned(false)
     setForm((prev) => ({ ...prev, placePhotoUrl: place.photoUrl }))
+  }
+
+  // 지도에서 POI가 아닌 빈 공간을 찍은 경우 — 이름을 알 수 없으니 좌표만 잡고, 입력칸이 비어
+  // 있으면 좌표를 임시 이름으로 채워 무엇을 골랐는지 보이게 한다(사용자가 덮어쓸 수 있다).
+  const pickCoords = (lat: number, lng: number) => {
+    setLocationLat(lat)
+    setLocationLng(lng)
+    setCoordsPinned(true)
+    setLocationName((prev) => (prev.trim() ? prev : `${lat.toFixed(5)}, ${lng.toFixed(5)}`))
+  }
+
+  const changeLocationName = (value: string) => {
+    setLocationName(value)
+    if (!coordsPinned) {
+      setLocationLat(0)
+      setLocationLng(0)
+    }
   }
 
   const resetLocations = () => {
@@ -108,6 +136,8 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
     setFromLocationName('')
     setFromLocationLat(0)
     setFromLocationLng(0)
+    setMapOpen(false)
+    setCoordsPinned(false)
   }
 
   // 일정 날짜(dayDate)의 체크인~체크아웃 기간에 겹치는 숙소들.
@@ -125,6 +155,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
     setLocationName(acc.name)
     setLocationLat(acc.lat ?? 0)
     setLocationLng(acc.lng ?? 0)
+    setCoordsPinned(acc.lat != null)
     setForm((prev) => {
       const notesParts = [
         acc.bookingRef ? `예약번호 ${acc.bookingRef}` : null,
@@ -143,7 +174,9 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
     if (!form.title.trim()) return
     onSave({
       ...form,
-      location: locationName.trim()
+      // 이름이 비어도 좌표가 있으면 저장한다 — 지도에서 빈 공간을 찍어 좌표만 잡은 뒤 이름을
+      // 지운 경우, 이름만 보고 판단하면 찍어둔 좌표까지 통째로 버려진다.
+      location: locationName.trim() || locationLat !== 0 || locationLng !== 0
         ? { name: locationName.trim(), lat: locationLat, lng: locationLng }
         : undefined,
       fromLocation: hasField(form.type, 'fromLocation') && fromLocationName.trim()
@@ -262,17 +295,42 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
             <Label>{showFromLocation ? '도착지' : '장소 검색'}</Label>
             <PlaceAutocompleteInput
               value={locationName}
-              onValueChange={(v) => {
-                setLocationName(v)
-                setLocationLat(0)
-                setLocationLng(0)
-              }}
+              onValueChange={changeLocationName}
               onSelect={selectLocation}
               placeholder={CATEGORY_PLACEHOLDERS[form.type].location}
               locationBias={locationBias}
             />
-            {locationLat !== 0 && (
-              <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
+            {/* API 키가 없으면 지도를 띄울 수 없으므로 토글 자체를 감춘다 */}
+            {MAPS_ENABLED && (
+              <div className="flex items-center justify-between gap-2">
+                {locationLat !== 0 ? (
+                  <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
+                ) : (
+                  <span />
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 shrink-0 text-xs"
+                  onClick={() => setMapOpen((v) => !v)}
+                >
+                  <MapPin className="mr-1 h-3 w-3" />
+                  {mapOpen ? '지도 닫기' : '지도에서 선택'}
+                </Button>
+              </div>
+            )}
+            {/* 기본은 닫힌 상태다 — Map을 마운트하는 순간 지도 타일이 과금된다 */}
+            {mapOpen && (
+              <div className="space-y-1">
+                <PlaceMapPicker
+                  selected={locationLat !== 0 ? { lat: locationLat, lng: locationLng } : undefined}
+                  fallbackCenter={locationBias}
+                  onSelect={selectLocation}
+                  onPickCoords={pickCoords}
+                />
+                <p className="text-xs text-muted-foreground">지도의 장소를 탭하면 정보가 채워집니다</p>
+              </div>
             )}
           </div>
           {(showMealType || showCheckType) && (
