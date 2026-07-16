@@ -21,6 +21,7 @@ Each document has a specific role:
 
 | Document            | Role                       |
 | ------------------- | -------------------------- |
+| ARCHITECTURE.md     | Map of the existing code   |
 | DATABASE.md         | Data architecture rules    |
 | DESIGN.md           | UI/UX system               |
 | DEPLOYMENT.md       | Deployment process         |
@@ -28,9 +29,21 @@ Each document has a specific role:
 | IOS_WEBAPP.md       | PWA / iOS behavior         |
 | PROJECT_TEMPLATE.md | Project creation checklist |
 
+Note: ARCHITECTURE.md describes **what the code currently does**; every other document defines **rules to follow**.
+
 ---
 
 ## 3. Document Usage Rules (CRITICAL)
+
+### 3.0 When to Read [ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+
+MUST be referenced when:
+
+- Modifying existing code (before, not after)
+- Adding a field to a domain type
+- Tracing how data flows or where state is saved
+
+---
 
 ### 3.1 When to Read [DATABASE.md](./docs/DATABASE.md)
 

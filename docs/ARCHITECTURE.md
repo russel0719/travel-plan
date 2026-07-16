@@ -1,0 +1,190 @@
+# ARCHITECTURE.md — 코드베이스 안내
+
+이 문서는 **이 저장소의 코드가 실제로 어떻게 도는지**를 설명한다.
+`docs/`의 다른 문서들(DATABASE, DESIGN, AUTH …)이 "지켜야 할 규칙"이라면, 이 문서는 "지금 있는 코드의 지도"다.
+
+처음 읽는다면 [1. 한 장 요약](#1-한-장-요약) → [3. 저장은 자동이다](#3-저장은-자동이다-가장-중요) → [7. 자주 하는 작업](#7-자주-하는-작업) 순서를 권한다.
+
+---
+
+## 1. 한 장 요약
+
+Next.js 16 App Router · React 19 · 전부 클라이언트 컴포넌트(`'use client'`)로 도는 SPA에 가까운 구조다.
+서버는 두 가지 일만 한다: **외부 API 키를 숨기는 프록시**(`app/api/*`)와 **세션 쿠키 갱신**(`proxy.ts`).
+
+```mermaid
+flowchart LR
+  UI[컴포넌트<br/>components/trip/*] -->|액션 호출| Store[Zustand store<br/>store/tripStore.ts]
+  Store -->|subscribe가 변경 감지| Storage[lib/storage.ts]
+  Storage -->|쓰기: upsert_trip RPC 한 방| DB[(Supabase<br/>app_travel_plan)]
+  DB -->|읽기: trips + 자식 8개 테이블| Storage
+  Storage -->|재조립| Assembly[lib/tripAssembly.ts]
+  Assembly -->|Trip 객체| Store
+  Store -->|상태| UI
+```
+
+기억할 것 세 가지:
+
+1. **`Trip` 하나가 전부다.** 일정·항공·숙박·예산·후기가 전부 `Trip` 객체 안에 중첩된 트리로 들어있다 (`lib/types.ts`).
+2. **컴포넌트는 저장을 호출하지 않는다.** store를 바꾸면 알아서 저장된다 ([3장](#3-저장은-자동이다-가장-중요)).
+3. **읽기와 쓰기는 대칭이 아니다.** 쓰기는 RPC 한 방, 읽기는 9개 테이블 조회 후 재조립 ([4장](#4-읽기와-쓰기가-다른-이유)).
+
+---
+
+## 2. 파일 지도
+
+| 경로 | 역할 |
+|---|---|
+| `store/tripStore.ts` | **모든 상태와 자동 저장.** 앱의 심장 |
+| `lib/types.ts` | `Trip`/`ScheduleItem` 등 전체 도메인 타입 + 라벨·색상 상수 |
+| `lib/storage.ts` | Supabase 읽기/쓰기, localStorage 폴백 |
+| `lib/tripAssembly.ts` | 정규화된 DB row → 중첩된 `Trip` 객체로 재조립 |
+| `lib/supabase.ts` | 브라우저 Supabase 클라이언트 (**스키마가 `app_travel_plan`으로 고정**) |
+| `lib/routes.ts` | `/api/compute-route` 호출 헬퍼. 실패하면 throw 없이 `null` |
+| `lib/utils.ts` | `cn`, 날짜 유틸, `googleMapsUrl` |
+| `hooks/usePlaceAutocompleteElement.ts` | Google 장소 검색 위젯 공용 훅 (일정·숙박이 공유) |
+| `proxy.ts` | Supabase 세션 쿠키 갱신 미들웨어 (Next.js 16은 `middleware.ts`가 아니라 `proxy.ts`) |
+| `app/api/compute-route/route.ts` | Routes API 프록시 — 서버 전용 키를 숨기려고 존재 |
+| `app/api/generate-report/route.ts` | NVIDIA(Llama 3.3 70B) 후기 생성 프록시 |
+| `components/trip/*` | 일정·항공·숙박·예산 UI |
+| `components/map/TripMap.tsx` | 지도 마커 + 경로 폴리라인 |
+| `components/ui/*` | shadcn/ui 기반 공통 컴포넌트 (Base UI 기반) |
+
+---
+
+## 3. 저장은 자동이다 (가장 중요)
+
+**컴포넌트 어디에도 `save()` 호출이 없다.** `store/tripStore.ts` 맨 아래 `subscribe`가 `trips` 배열을 감시하다가, **`updatedAt`이 달라진 trip만** 골라 자동으로 Supabase에 저장한다.
+
+```
+사용자가 일정 수정
+  → store.updateScheduleItem()
+  → touch()로 trip.updatedAt 갱신          ← 이게 저장 트리거
+  → subscribe가 updatedAt 변화 감지
+  → upsertTrip() → upsert_trip RPC
+```
+
+### ⚠️ 새 액션을 추가할 때 `touch()`를 빼먹으면 조용히 저장되지 않는다
+
+store의 모든 변경 액션은 `touch(...)`(= `updatedAt` 갱신)를 거친다. 이걸 빠뜨리면 화면은 정상적으로 바뀌고 에러도 없는데 **새로고침하면 사라진다.** 변경 감지가 전적으로 `updatedAt` 비교이기 때문이다.
+
+```ts
+// store/tripStore.ts
+const touch = (t: Trip): Trip => ({ ...t, updatedAt: new Date().toISOString() })
+```
+
+저장 실패는 `syncError`에 담겨 `components/SyncStatusBanner.tsx`로 사용자에게 노출된다 — 조용히 삼키지 않는다.
+
+---
+
+## 4. 읽기와 쓰기가 다른 이유
+
+DB는 정규화되어 있는데(`schedule_items`, `flights`, … 9개 테이블) 앱은 중첩된 `Trip` 객체를 쓴다. 그 간극을 양쪽에서 다르게 메운다.
+
+**쓰기 — `upsert_trip(p_trip jsonb)` RPC 한 번** (`lib/storage.ts` → `supabase/migrations/*_upsert_trip_function*.sql`)
+
+`Trip` 객체를 통째로 jsonb로 넘기면, RPC가 트립 메타를 upsert하고 **자식 테이블을 전부 DELETE 후 재삽입**한다. 단일 트랜잭션이라 부분 저장이 없다. 대신 **필드를 추가하면 이 RPC도 반드시 고쳐야 한다** — 안 그러면 그 필드만 조용히 유실된다 ([7장](#7-자주-하는-작업)).
+
+**읽기 — `trips` 조회 → 자식 8개 테이블 병렬 조회 → 재조립** (`lib/storage.ts` → `lib/tripAssembly.ts`)
+
+`trips`를 먼저 가져와 `tripIds`를 얻은 뒤, 나머지 8개 테이블을 `Promise.all`로 한 번에 조회한다.
+
+자식 테이블 하나가 실패해도 여행 전체를 숨기지 않는다. 실패한 테이블만 빈 값으로 두고 어떤 테이블이 실패했는지를 `loadError`로 표면화한다.
+
+> 스키마 이름을 쿼리에 쓰지 않는 이유: `lib/supabase.ts`에서 클라이언트를 `{ db: { schema: 'app_travel_plan' } }`로 만들었기 때문에 `.from('trips')`가 이미 `app_travel_plan.trips`를 가리킨다. `public`이 아니다.
+
+---
+
+## 5. 화면 구조
+
+- `app/page.tsx` — 여행 목록
+- `app/trip/[id]/page.tsx` — **메인 화면.** 좌측 패널(일정/항공·숙박/예산/후기 탭) + 우측(지도 또는 후기 패널). 모바일에서는 좌측만 보이고 지도는 토글
+- `app/trip/[id]/print/*`, `.../report/[reportId]/print` — 인쇄용 뷰
+
+일정 UI 계층: `DaySchedule`(날짜별 목록 + dnd-kit 정렬) → `ScheduleItem`(카드) / `ScheduleForm`(추가·수정 다이얼로그)
+
+**카테고리별로 폼 필드가 달라진다.** `lib/types.ts`의 `CATEGORY_EXTRA_FIELDS`가 그 매핑이다:
+
+```ts
+attraction: ['reservationNeeded'],
+restaurant: ['mealType', 'reservationNeeded'],
+hotel:      ['checkType', 'reservationNeeded'],
+transport:  ['fromLocation', 'transportMode'],
+```
+
+---
+
+## 6. 외부 연동
+
+| 용도 | 키 | 위치 |
+|---|---|---|
+| 지도 표시 · 장소 검색 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (브라우저) | `MapsProvider` → `TripMap`, `usePlaceAutocompleteElement` |
+| 도로 경로 계산 | `GOOGLE_ROUTES_API_KEY` (**서버 전용**) | `app/api/compute-route` |
+| AI 후기 생성 | `NVIDIA_API_KEY` (서버 전용) | `app/api/generate-report` |
+
+**키 두 개는 의도적으로 분리되어 있다.** 브라우저 키는 노출될 수밖에 없어 Places/Maps만 열어두고, Routes는 서버 전용 키로만 호출한다. Routes 키로 Places를 부르면 `API_KEY_SERVICE_BLOCKED`가 나는 게 정상이다.
+
+키가 없어도 앱은 죽지 않는다 — `MapsProvider`는 지도/검색을 끄고, `fetchRoute`는 `null`을 반환해 지도가 직선 동선으로 폴백한다.
+
+**인증**: Google OAuth(Supabase Auth) 하나뿐. `proxy.ts`가 매 요청 세션 쿠키를 갱신하고, 로그인 직후 `hydrate()`가 `app_id`/`role` 메타데이터를 심는다. 비로그인 상태의 localStorage 데이터는 첫 로그인 때 서버로 옮겨지며, **전부 성공했을 때만** 로컬 백업을 지운다.
+
+---
+
+## 7. 자주 하는 작업
+
+### 일정(`ScheduleItem`)에 필드 추가하기
+
+정규화 구조라 **6곳을 모두 고쳐야 한다.** 하나라도 빠지면 조용히 유실된다 — 특히 RPC.
+
+1. `lib/types.ts` — `ScheduleItem`에 필드 추가 (카테고리 전용이면 `CATEGORY_EXTRA_FIELDS`에도)
+2. `components/trip/ScheduleForm.tsx` — 입력 UI + `EMPTY` 초기값
+3. `components/trip/ScheduleItem.tsx` — 카드에 표시
+4. **새 마이그레이션** — `ALTER TABLE app_travel_plan.schedule_items ADD COLUMN …`
+5. **같은 마이그레이션에서 `upsert_trip` RPC를 `CREATE OR REPLACE`** — INSERT 컬럼 목록과 SELECT 양쪽에 추가 (**여기를 빼먹는 게 제일 흔한 실수**)
+6. `lib/tripAssembly.ts` — row 타입 + 매핑 추가
+
+`lib/storage.ts`는 `select('*')`라 손댈 필요 없다.
+
+마이그레이션 파일명은 **타임스탬프**(`YYYYMMDDHHMMSS_이름.sql`)로 만든다. 다른 프로젝트와 마이그레이션 히스토리를 공유하므로 순번은 충돌한다. `supabase db push`가 "Remote migration versions not found"를 뱉으면 **`migration repair`를 절대 실행하지 말고** 빈 스텁 파일로 우회한다.
+
+### 화면 만들기
+
+`docs/DESIGN.md`의 토큰을 쓴다. 모바일 우선이고, 실제 확인은 **402px(iPhone 17)** 기준으로 한다.
+
+### 브라우저로 검증하기
+
+로그인 없이는 `/trip/[id]`에 들어갈 수 없다. 특정 컴포넌트만 확인하려면 `app/dev-…-test/page.tsx` 같은 **임시 라우트를 만들어 컴포넌트만 mount**하고 끝나면 지운다. (폴더명을 `_`로 시작하면 App Router가 라우팅에서 제외하므로 주의.)
+
+---
+
+## 8. 함정 모음
+
+실제로 겪은 것만 적었다. 전부 "에러 없이 조용히 잘못 도는" 종류다.
+
+**`touch()` 누락 → 저장 안 됨.** [3장](#3-저장은-자동이다-가장-중요) 참고.
+
+**`upsert_trip` RPC 갱신 누락 → 그 필드만 유실.** [7장](#7-자주-하는-작업) 참고.
+
+**장소 검색 컨테이너에 `overflow-hidden` 금지.** 데스크톱에서 제안 드롭다운이 컨테이너 기준 절대배치로 뜨기 때문에 통째로 잘린다. 입력도 되고 Autocomplete 요청도 200으로 나가는데 목록만 안 보여서 원인을 찾기 매우 어렵다. 게다가 **모바일 폭에서는 Google이 풀스크린 검색 UI로 전환해 증상이 안 나타난다** — 폰에서만 확인하면 놓친다. 너비 제어는 훅 안에서 엘리먼트 쪽에 건다.
+
+**`fetchRoute`의 duration/distance 가드.** `lib/routes.ts`가 `durationSeconds`/`distanceMeters`가 없으면 `null`을 반환한다. 이동시간을 UI에서 쓰지 않는다고 Routes API FieldMask에서 이 둘을 빼면 → `fetchRoute`가 `null` → **지도의 모든 도로 경로가 직선으로 조용히 퇴화한다.** 지금 안 쓰는 것처럼 보여도 지우지 말 것.
+
+**`item.duration`은 이동시간이 아니라 체류시간이다.** 사용자가 직접 입력하는 값이고 Routes API와 무관하다. 라벨이 "소요시간 (분)"이라 헷갈린다.
+
+**Base UI `Select`에 `items` prop을 넘기지 않으면** 트리거에 라벨 대신 raw value가 표시된다. `ScheduleForm`의 `TRANSPORT_SELECT_ITEMS` 같은 상수가 그래서 있다.
+
+**Supabase JWT는 레거시 HS256을 유지해야 한다.** 공유 프로젝트라 ES256으로 바꾸면 Data API 검증이 깨져 다른 앱까지 같이 죽는다.
+
+**서비스 워커(`public/sw.js`)가 cache-first다.** 디버깅이 이상하면 SW를 먼저 unregister하고 확인한다.
+
+---
+
+## 9. 더 읽을 것
+
+| 문서 | 내용 |
+|---|---|
+| [DATABASE.md](./DATABASE.md) | 스키마 분리 규칙 (일반 규칙) |
+| [DESIGN.md](./DESIGN.md) | 디자인 토큰·컴포넌트 스펙 |
+| [AUTH.md](./AUTH.md) | 인증 전략 |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | 배포 절차 |
+| [IOS_WEBAPP.md](./IOS_WEBAPP.md) | PWA / iOS 설정 |

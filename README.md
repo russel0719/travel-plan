@@ -23,10 +23,10 @@
 ### 지도 시각화
 - Google Maps에 일정 장소 마커 표시
 - Google Routes API로 계산한 실제 도로 경로를 동선으로 표시(직선 폴백 지원)
-- 일정 목록에서도 연속된 두 일정 사이 실제 이동시간/거리 표시
 
 ### 장소 정보 (Google Places)
-- 관광/식당 등 장소 선택 시 평점·대표 사진을 함께 가져와 일정 카드에 표시
+- 관광/식당 등 장소 선택 시 대표 사진을 함께 가져와 일정 카드에 표시
+- 일정 카드에서 해당 장소를 Google 지도로 바로 열기
 
 ### AI 여행 후기
 - 사진 업로드 및 날짜별 배치
@@ -56,52 +56,15 @@
 | AI | NVIDIA API — meta/llama-3.3-70b-instruct |
 | 배포 | Vercel |
 
-## 프로젝트 구조
+## 코드베이스 구조
 
-```
-travel-plan/
-├── app/
-│   ├── page.tsx                        # 홈 (여행 목록)
-│   ├── trip/[id]/
-│   │   ├── page.tsx                    # 여행 상세 (일정·항공·예산·후기)
-│   │   ├── print/page.tsx              # 일정 인쇄
-│   │   └── report/[reportId]/
-│   │       ├── page.tsx                # 후기 상세
-│   │       └── print/page.tsx          # 후기 인쇄
-│   └── api/
-│       ├── generate-report/route.ts    # AI 후기 생성 엔드포인트
-│       └── compute-route/route.ts      # Google Routes API 서버 프록시
-├── components/
-│   ├── auth/LoginPage.tsx
-│   ├── map/TripMap.tsx
-│   ├── report/                         # 후기 업로드·코멘트 패널
-│   ├── trip/                           # 일정·항공·숙박·예산 컴포넌트
-│   └── ui/                             # shadcn/ui 기반 공통 컴포넌트
-├── hooks/
-│   └── usePlaceAutocompleteElement.ts  # Google Places 장소 검색 공용 훅
-├── lib/
-│   ├── types.ts                        # Trip, ScheduleItem 등 타입 정의
-│   ├── storage.ts                      # Supabase CRUD
-│   ├── tripAssembly.ts                 # 정규화 테이블 → Trip 재조립
-│   ├── routes.ts                       # Routes API 클라이언트 헬퍼
-│   ├── supabase.ts                     # Supabase 클라이언트
-│   └── utils.ts
-├── store/
-│   └── tripStore.ts                    # Zustand 스토어 (상태 + Supabase 자동 동기화)
-├── public/
-│   ├── manifest.json                   # PWA 매니페스트
-│   └── sw.js                           # 서비스 워커
-└── docs/                               # 아키텍처 문서
-```
+디렉토리 지도, 데이터 흐름, 상태 관리 방식, 그리고 조용히 발목 잡는 함정들은 **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** 에 정리되어 있습니다. 코드를 처음 만진다면 여기부터 읽으세요.
 
-## 데이터 아키텍처
+핵심만 요약하면:
 
-단일 Supabase 프로젝트에서 스키마 분리 방식으로 애플리케이션을 격리합니다.
-
-- 스키마: `app_travel_plan`
-- 여행 데이터는 엔티티별로 정규화된 테이블에 저장: `trips`(메타데이터), `schedule_items`, `flights`, `accommodations`, `budgets`, `budget_items`, `reports`, `report_day_texts`, `report_photos` — 전부 `trip_id` FK(`ON DELETE CASCADE`) + RLS
-- Zustand store가 trips 변경을 감지해, 변경된 트립은 `upsert_trip` RPC(단일 트랜잭션으로 트립 메타 + 모든 하위 테이블을 원자적으로 replace)를 통해 저장하고, 읽기는 `lib/storage.ts`가 9개 테이블을 조회해 `lib/tripAssembly.ts`에서 기존 `Trip` 타입으로 재조립
-- 레거시 `trips.data`(jsonb 통짜 저장) 컬럼은 검증 완료 후 제거됨 (`0005_drop_legacy_data_column.sql`) — 제거 직전 값은 `trips_data_backup_20260710` 테이블에 백업
+- 데이터는 단일 Supabase 프로젝트의 `app_travel_plan` 스키마에 격리되어 있고, 여행 하나가 9개 정규화 테이블(`trips`, `schedule_items`, `flights`, `accommodations`, `budgets`, `budget_items`, `reports`, `report_day_texts`, `report_photos`)에 나뉘어 저장됩니다.
+- 앱에서는 이 전부가 중첩된 `Trip` 객체 하나로 다뤄집니다 (`lib/types.ts`).
+- 저장은 자동입니다 — 컴포넌트는 `save()`를 호출하지 않고, Zustand store가 `updatedAt` 변화를 감지해 `upsert_trip` RPC로 저장합니다.
 
 ## 환경 변수 설정
 
@@ -122,7 +85,7 @@ GOOGLE_ROUTES_API_KEY=your_google_routes_api_key
 NVIDIA_API_KEY=your_nvidia_api_key
 ```
 
-`GOOGLE_ROUTES_API_KEY`가 없어도 앱은 정상 동작합니다 — 실제 이동시간/거리·도로 경로 기능만 조용히 비활성화되고(직선 동선으로 폴백), 에러가 나지 않습니다.
+`GOOGLE_ROUTES_API_KEY`가 없어도 앱은 정상 동작합니다 — 지도의 도로 경로만 조용히 비활성화되고(직선 동선으로 폴백), 에러가 나지 않습니다.
 
 ## 로컬 개발
 
@@ -149,9 +112,12 @@ npm run build
 
 | 문서 | 내용 |
 |------|------|
-| [docs/DATABASE.md](./docs/DATABASE.md) | DB 스키마 아키텍처 |
+| **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | **이 코드베이스 안내 — 파일 지도, 데이터 흐름, 필드 추가법, 함정 모음** |
+| [docs/DATABASE.md](./docs/DATABASE.md) | DB 스키마 분리 규칙 |
 | [docs/DESIGN.md](./docs/DESIGN.md) | UI/UX 디자인 시스템 |
 | [docs/AUTH.md](./docs/AUTH.md) | 인증 전략 |
 | [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | 배포 절차 |
 | [docs/IOS_WEBAPP.md](./docs/IOS_WEBAPP.md) | PWA / iOS 설정 |
 | [docs/PROJECT_TEMPLATE.md](./docs/PROJECT_TEMPLATE.md) | 프로젝트 생성 체크리스트 |
+
+> `ARCHITECTURE.md`는 "지금 있는 코드의 지도", 나머지는 "지켜야 할 규칙"입니다.
