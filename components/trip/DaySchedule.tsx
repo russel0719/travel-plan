@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import ScheduleItemCard from './ScheduleItem'
 import ScheduleForm from './ScheduleForm'
-import RouteConnector from './RouteConnector'
 import {
   DndContext,
   closestCenter,
@@ -70,21 +69,14 @@ export default function DaySchedule({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={day.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-1.5">
-            {day.items.map((item, idx) => {
-              const next = day.items[idx + 1]
-              return (
-                <div key={item.id}>
-                  <ScheduleItemCard
-                    item={item}
-                    onEdit={() => setEditItem(item)}
-                    onDelete={() => onDeleteItem(item.id)}
-                  />
-                  {next && item.location && next.location && item.transportToNext && (
-                    <RouteConnector origin={item.location} destination={next.location} mode={item.transportToNext} />
-                  )}
-                </div>
-              )
-            })}
+            {day.items.map((item) => (
+              <ScheduleItemCard
+                key={item.id}
+                item={item}
+                onEdit={() => setEditItem(item)}
+                onDelete={() => onDeleteItem(item.id)}
+              />
+            ))}
           </div>
         </SortableContext>
       </DndContext>
