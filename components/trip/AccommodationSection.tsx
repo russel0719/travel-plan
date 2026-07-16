@@ -76,7 +76,7 @@ function AccommodationForm({
           </div>
           <div className="space-y-1.5">
             <Label>주소</Label>
-            <div ref={addressContainerRef} className="w-full min-w-0 overflow-hidden" />
+            <div ref={addressContainerRef} className="w-full min-w-0" />
             {form.lat != null && (
               <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
             )}

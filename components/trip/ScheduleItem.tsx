@@ -1,9 +1,10 @@
 'use client'
 
 import { ScheduleItem as ScheduleItemType, ITEM_TYPE_LABELS, ITEM_TYPE_COLORS, MEAL_TYPE_LABELS, CHECK_TYPE_LABELS } from '@/lib/types'
+import { googleMapsUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Pencil, Trash2, GripVertical, MapPin, Clock } from 'lucide-react'
+import { Pencil, Trash2, GripVertical, MapPin, Clock, ExternalLink } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -23,6 +24,7 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
   }
 
   const color = ITEM_TYPE_COLORS[item.type]
+  const mapsUrl = item.location ? googleMapsUrl(item.location) : null
 
   return (
     <div ref={setNodeRef} style={style} className="group">
@@ -78,8 +80,16 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
             <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />
               <span className="truncate">{item.location.name}</span>
-              {item.placeRating != null && (
-                <span className="text-amber-600 font-medium ml-1 shrink-0">★ {item.placeRating.toFixed(1)}</span>
+              {mapsUrl && (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${item.location.name} — Google 지도에서 열기`}
+                  className="ml-1 shrink-0 text-primary hover:opacity-70"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </a>
               )}
             </p>
           )}

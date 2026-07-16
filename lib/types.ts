@@ -28,8 +28,7 @@ export interface ScheduleItem {
   checkType?: CheckType               // hotel 전용 — 체크인/체크아웃 구분
   fromLocation?: Location             // transport 전용 — 출발지 (location은 도착지로 사용)
   transportMode?: TransportType       // transport 전용 — 이 구간 자체의 이동수단 (transportToNext는 다음 일정으로 이동할 때의 수단)
-  placeRating?: number                 // Google Place Details — 장소 평점 (location 선택 시에만 채워짐)
-  placePhotoUrl?: string               // Google Place Details — 대표 사진 URL
+  placePhotoUrl?: string               // Google Place Details — 대표 사진 URL (location 선택 시에만 채워짐)
 }
 
 export interface DaySchedule {

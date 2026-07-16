@@ -43,7 +43,6 @@ const EMPTY: Omit<ScheduleItem, 'id'> = {
   reservationNeeded: undefined,
   checkType: undefined,
   transportMode: undefined,
-  placeRating: undefined,
   placePhotoUrl: undefined,
 }
 
@@ -102,7 +101,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
       setLocationName(place.name)
       setLocationLat(place.lat)
       setLocationLng(place.lng)
-      setForm((prev) => ({ ...prev, placeRating: place.rating, placePhotoUrl: place.photoUrl }))
+      setForm((prev) => ({ ...prev, placePhotoUrl: place.photoUrl }))
     },
     (value) => {
       setLocationName(value)
@@ -262,12 +261,12 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
           {showFromLocation && (
             <div key="from-location" className="space-y-1.5">
               <Label>출발지</Label>
-              <div ref={fromLocationContainerRef} className="w-full min-w-0 overflow-hidden" />
+              <div ref={fromLocationContainerRef} className="w-full min-w-0" />
             </div>
           )}
           <div key="location" className="space-y-1.5">
             <Label>{showFromLocation ? '도착지' : '장소 검색'}</Label>
-            <div ref={locationContainerRef} className="w-full min-w-0 overflow-hidden" />
+            <div ref={locationContainerRef} className="w-full min-w-0" />
             {locationLat !== 0 && (
               <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
             )}

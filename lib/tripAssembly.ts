@@ -61,7 +61,6 @@ export interface ScheduleItemRow {
   reservation_needed: boolean | null
   check_type: string | null
   transport_mode: string | null
-  place_rating: number | string | null
   place_photo_url: string | null
 }
 
@@ -190,7 +189,6 @@ function toScheduleItem(row: ScheduleItemRow): ScheduleItem {
     checkType: (row.check_type as CheckType | null) ?? undefined,
     fromLocation: toLocation(row.from_location_name, row.from_location_lat, row.from_location_lng, row.from_location_address),
     transportMode: (row.transport_mode as TransportType | null) ?? undefined,
-    placeRating: toOptionalNumber(row.place_rating),
     placePhotoUrl: row.place_photo_url ?? undefined,
   }
 }
