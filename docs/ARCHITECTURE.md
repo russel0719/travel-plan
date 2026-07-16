@@ -42,7 +42,9 @@ flowchart LR
 | `lib/supabase.ts` | 브라우저 Supabase 클라이언트 (**스키마가 `app_travel_plan`으로 고정**) |
 | `lib/routes.ts` | `/api/compute-route` 호출 헬퍼. 실패하면 throw 없이 `null` |
 | `lib/utils.ts` | `cn`, 날짜 유틸, `googleMapsUrl` |
-| `hooks/usePlaceAutocompleteElement.ts` | Google 장소 검색 위젯 공용 훅 (일정·숙박이 공유) |
+| `lib/places.ts` | `SelectedPlace` + `fetchSelectedPlace` — 검색·지도 클릭이 만나는 수렴점 |
+| `hooks/usePlaceSuggestions.ts` | 장소 자동완성 제안 조회 (디바운스·세션토큰·race guard) |
+| `components/place/*` | 자동완성 입력(`PlaceAutocompleteInput`)과 지도 선택(`PlaceMapPicker`) |
 | `proxy.ts` | Supabase 세션 쿠키 갱신 미들웨어 (Next.js 16은 `middleware.ts`가 아니라 `proxy.ts`) |
 | `app/api/compute-route/route.ts` | Routes API 프록시 — 서버 전용 키를 숨기려고 존재 |
 | `app/api/generate-report/route.ts` | NVIDIA(Llama 3.3 70B) 후기 생성 프록시 |
@@ -118,7 +120,7 @@ transport:  ['fromLocation', 'transportMode'],
 
 | 용도 | 키 | 위치 |
 |---|---|---|
-| 지도 표시 · 장소 검색 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (브라우저) | `MapsProvider` → `TripMap`, `usePlaceAutocompleteElement` |
+| 지도 표시 · 장소 검색 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (브라우저) | `MapsProvider` → `TripMap`, `usePlaceSuggestions`, `PlaceMapPicker` |
 | 도로 경로 계산 | `GOOGLE_ROUTES_API_KEY` (**서버 전용**) | `app/api/compute-route` |
 | AI 후기 생성 | `NVIDIA_API_KEY` (서버 전용) | `app/api/generate-report` |
 
@@ -165,11 +167,19 @@ transport:  ['fromLocation', 'transportMode'],
 
 **`upsert_trip` RPC 갱신 누락 → 그 필드만 유실.** [7장](#7-자주-하는-작업) 참고.
 
-**장소 검색 컨테이너에 `overflow-hidden` 금지.** 데스크톱에서 제안 드롭다운이 컨테이너 기준 절대배치로 뜨기 때문에 통째로 잘린다. 입력도 되고 Autocomplete 요청도 200으로 나가는데 목록만 안 보여서 원인을 찾기 매우 어렵다. 게다가 **모바일 폭에서는 Google이 풀스크린 검색 UI로 전환해 증상이 안 나타난다** — 폰에서만 확인하면 놓친다. 너비 제어는 훅 안에서 엘리먼트 쪽에 건다.
+**장소 검색 드롭다운을 감싸는 조상에 `overflow-*` 금지.** 제안 목록이 `absolute`로 뜨기 때문에 조상에 `overflow-hidden`이 걸리면 통째로 잘린다. 입력도 되고 요청도 200으로 나가는데 목록만 안 보여서 원인을 찾기 매우 어렵다(실제로 겪었다). 스크롤이 필요하면 드롭다운 자신에게만 건다. `DialogContent`에 같은 취지의 주석을 박아뒀다.
+
+**Google 위젯(`PlaceAutocompleteElement`)으로 되돌리지 말 것.** 그 위젯은 좁은 화면에서 제안을 풀스크린 `<dialog>`로 띄우는데, 그게 closed shadow DOM 안에 있고 `part` 속성도 없어서 **CSS로 크기를 바꿀 방법이 전혀 없다**(CDP로 shadow DOM을 열어 확인). 모바일 UX 때문에 `AutocompleteSuggestion` Data API로 직접 만든 것이다.
+
+**자동완성 세션 토큰은 곧 과금 단위다.** 타이핑 시작부터 선택(`fetchFields`)까지 하나를 재사용해야 세션 단위로 과금된다. 실패했다고 토큰을 살려두면 소비된 토큰을 계속 재사용해 **이후 요청이 전부 건당 과금**되므로 `finally`에서 버린다.
+
+**Places 데이터를 지도 없이 표시하면 "Powered by Google" 표기가 의무다.** 위젯이 자동으로 해주던 것을 직접 만들면서 우리 책임이 됐다.
 
 **`fetchRoute`의 duration/distance 가드.** `lib/routes.ts`가 `durationSeconds`/`distanceMeters`가 없으면 `null`을 반환한다. 이동시간을 UI에서 쓰지 않는다고 Routes API FieldMask에서 이 둘을 빼면 → `fetchRoute`가 `null` → **지도의 모든 도로 경로가 직선으로 조용히 퇴화한다.** 지금 안 쓰는 것처럼 보여도 지우지 말 것.
 
-**`item.duration`은 이동시간이 아니라 체류시간이다.** 사용자가 직접 입력하는 값이고 Routes API와 무관하다. 라벨이 "소요시간 (분)"이라 헷갈린다.
+**일정 시각은 `startTime`/`endTime`("HH:MM" 문자열)이다.** `endTime < startTime`은 **익일이라는 뜻이며 유효하다**(심야 일정). 검증으로 막지 말 것. 계산은 `lib/utils.ts`의 `timeRangeMinutes`가 wrap을 처리하고, 표시는 `formatTimeRange`를 카드·인쇄가 공유한다 — 각자 문자열을 만들면 어긋난다.
+
+**좌표에는 두 종류가 있다.** 검색으로 고른 좌표는 이름과 한 쌍이라 이름을 고치면 무효화하는 게 맞지만, 지도에서 찍거나 숙소에서 가져온 좌표는 이름과 무관하게 살아남아야 한다(`ScheduleForm`의 `coordsPinned`). 이걸 구분하지 않으면 지도에서 찍고 이름을 지웠을 때 좌표가 조용히 버려진다.
 
 **Base UI `Select`에 `items` prop을 넘기지 않으면** 트리거에 라벨 대신 raw value가 표시된다. `ScheduleForm`의 `TRANSPORT_SELECT_ITEMS` 같은 상수가 그래서 있다.
 
