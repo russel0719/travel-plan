@@ -14,7 +14,8 @@ import {
   MealType,
   CheckType,
 } from '@/lib/types'
-import { usePlaceAutocompleteElement } from '@/hooks/usePlaceAutocompleteElement'
+import PlaceAutocompleteInput from '@/components/place/PlaceAutocompleteInput'
+import { SelectedPlace } from '@/lib/places'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -93,38 +94,12 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
   const [fromLocationLat, setFromLocationLat] = useState(initial?.fromLocation?.lat ?? 0)
   const [fromLocationLng, setFromLocationLng] = useState(initial?.fromLocation?.lng ?? 0)
 
-  const { containerRef: locationContainerRef, setValue: setLocationValue } = usePlaceAutocompleteElement(
-    open,
-    CATEGORY_PLACEHOLDERS[form.type].location,
-    initial?.location?.name ?? '',
-    (place) => {
-      setLocationName(place.name)
-      setLocationLat(place.lat)
-      setLocationLng(place.lng)
-      setForm((prev) => ({ ...prev, placePhotoUrl: place.photoUrl }))
-    },
-    (value) => {
-      setLocationName(value)
-      setLocationLat(0)
-      setLocationLng(0)
-    }
-  )
-
-  const { containerRef: fromLocationContainerRef } = usePlaceAutocompleteElement(
-    open && hasField(form.type, 'fromLocation'),
-    '예: 나리타 공항',
-    initial?.fromLocation?.name ?? '',
-    (place) => {
-      setFromLocationName(place.name)
-      setFromLocationLat(place.lat)
-      setFromLocationLng(place.lng)
-    },
-    (value) => {
-      setFromLocationName(value)
-      setFromLocationLat(0)
-      setFromLocationLng(0)
-    }
-  )
+  const selectLocation = (place: SelectedPlace) => {
+    setLocationName(place.name)
+    setLocationLat(place.lat)
+    setLocationLng(place.lng)
+    setForm((prev) => ({ ...prev, placePhotoUrl: place.photoUrl }))
+  }
 
   const resetLocations = () => {
     setLocationName('')
@@ -140,8 +115,13 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
     ? (accommodations ?? []).filter((a) => a.checkInDate <= dayDate && dayDate <= a.checkOutDate)
     : []
 
+  // 검색을 여행지 근처로 편향시킨다 — 도쿄 여행 중 "스타벅스"를 치면 서울 지점이 뜨는 걸 막는다.
+  // trip.destination은 문자열이라 좌표가 없으므로 그 날 묵는 숙소를, 없으면 아무 숙소나 기준으로 쓴다.
+  const hasCoords = (a: Accommodation) => a.lat != null && a.lng != null
+  const biasSource = dayMatchedAccommodations.find(hasCoords) ?? (accommodations ?? []).find(hasCoords)
+  const locationBias = biasSource ? { lat: biasSource.lat!, lng: biasSource.lng! } : undefined
+
   const applyAccommodation = (acc: Accommodation) => {
-    setLocationValue(acc.name)
     setLocationName(acc.name)
     setLocationLat(acc.lat ?? 0)
     setLocationLng(acc.lng ?? 0)
@@ -261,12 +241,36 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
           {showFromLocation && (
             <div key="from-location" className="space-y-1.5">
               <Label>출발지</Label>
-              <div ref={fromLocationContainerRef} className="w-full min-w-0" />
+              <PlaceAutocompleteInput
+                value={fromLocationName}
+                onValueChange={(v) => {
+                  setFromLocationName(v)
+                  setFromLocationLat(0)
+                  setFromLocationLng(0)
+                }}
+                onSelect={(place) => {
+                  setFromLocationName(place.name)
+                  setFromLocationLat(place.lat)
+                  setFromLocationLng(place.lng)
+                }}
+                placeholder="예: 나리타 공항"
+                locationBias={locationBias}
+              />
             </div>
           )}
           <div key="location" className="space-y-1.5">
             <Label>{showFromLocation ? '도착지' : '장소 검색'}</Label>
-            <div ref={locationContainerRef} className="w-full min-w-0" />
+            <PlaceAutocompleteInput
+              value={locationName}
+              onValueChange={(v) => {
+                setLocationName(v)
+                setLocationLat(0)
+                setLocationLng(0)
+              }}
+              onSelect={selectLocation}
+              placeholder={CATEGORY_PLACEHOLDERS[form.type].location}
+              locationBias={locationBias}
+            />
             {locationLat !== 0 && (
               <p className="text-xs text-emerald-600">지도 마커 연결됨</p>
             )}

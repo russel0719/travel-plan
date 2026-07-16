@@ -53,9 +53,14 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
+          // 이 Popup에는 overflow-hidden/overflow-auto를 추가하면 안 된다 — 안에서 absolute로 뜨는
+          // 드롭다운(PlaceAutocompleteInput의 제안 목록)이 통째로 잘려서 "입력도 되고 검색 요청도
+          // 200으로 나가는데 목록만 안 보이는" 상태가 된다(실제로 겪었고 원인 찾기가 매우 어려웠다).
+          // 폼이 길어 스크롤이 필요하면 Popup이 아니라 드롭다운 쪽을 포털로 바꿔라.
+          //
           // [&>*]:min-w-0 — Popup이 grid라 자식(폼 내용 등)의 기본 min-width:auto(=min-content)가
-          // max-width 제약을 무시하고 그리드 트랙을 늘릴 수 있다(Google PlaceAutocompleteElement처럼
-          // intrinsic 너비가 큰 자식이 들어왔을 때 다이얼로그 전체가 화면 밖으로 삐져나가는 원인이었음).
+          // max-width 제약을 무시하고 그리드 트랙을 늘릴 수 있다(intrinsic 너비가 큰 자식이 들어왔을 때
+          // 다이얼로그 전체가 화면 밖으로 삐져나가는 원인이었음).
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm [&>*]:min-w-0 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
