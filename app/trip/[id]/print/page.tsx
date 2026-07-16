@@ -8,7 +8,7 @@ import {
   ITEM_TYPE_LABELS, ITEM_TYPE_COLORS,
   BUDGET_CATEGORY_LABELS, ITEM_TYPE_TO_BUDGET, BudgetCategory,
 } from '@/lib/types'
-import { formatDate, getDayLabel } from '@/lib/utils'
+import { formatDate, formatTimeRange, getDayLabel } from '@/lib/utils'
 import { Printer, ArrowLeft, MapPin, Clock, Ticket, Phone, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -67,8 +67,10 @@ function RouteDiagram({ day }: { day: DaySchedule }) {
                 <p className="text-center text-[9px] text-gray-500 mt-1 leading-tight px-1 break-words w-full">
                   {item.location!.name}
                 </p>
-                {item.time && (
-                  <p className="text-[9px] text-gray-400 tabular-nums">{item.time}</p>
+                {/* 폭 68px에 9px 폰트라 범위는 안 들어간다 — 동선 다이어그램의 관심사는 순서와
+                    도착 시각이므로 시작 시각만 보여준다 */}
+                {item.startTime && (
+                  <p className="text-[9px] text-gray-400 tabular-nums">{item.startTime}</p>
                 )}
               </div>
               {/* 연결 화살표 */}
@@ -92,40 +94,49 @@ function RouteDiagram({ day }: { day: DaySchedule }) {
 function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCurrency?: string }) {
   const color = ITEM_TYPE_COLORS[item.type]
   // 마커 번호 표시용 — 부모에서 index 넘겨받으면 더 정확하지만 여기선 위치 여부만 활용
+  const timeRange = formatTimeRange(item.startTime, item.endTime)
   return (
     <div className="flex items-start gap-2 py-[3px]">
       {/* 색상 바 */}
       <div className="w-0.5 self-stretch rounded-full shrink-0" style={{ backgroundColor: color }} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          {item.time && (
-            <span className="text-[10px] text-gray-400 tabular-nums w-9 shrink-0 flex items-center gap-0.5">
-              <Clock className="h-2 w-2" />{item.time}
-            </span>
+      {/* 시간을 grid 트랙으로 잡으면 본문 들여쓰기가 구조적으로 따라온다 — 예전엔 시간 span의 w-9와
+          아래 본문의 ml-[calc(2.25rem+...)]이 하드코딩으로 묶여 있어서, 시간 표기가 "10:00"에서
+          "10:00 ~ 11:30"으로 길어지면 정렬이 깨졌다. 시간이 없는 항목도 열이 유지돼 정렬이 맞는다. */}
+      {/* 5rem은 "10:00 ~ 11:30"의 실측 폭(78px, 10px tabular-nums + Clock 아이콘) 기준 */}
+      <div className="flex-1 min-w-0 grid grid-cols-[5rem_1fr] gap-x-1.5">
+        <span className="text-[10px] text-gray-400 tabular-nums whitespace-nowrap flex items-center gap-0.5">
+          {timeRange && (
+            <>
+              <Clock className="h-2 w-2 shrink-0" />{timeRange}
+            </>
           )}
-          <span
-            className="text-[10px] px-1 py-px rounded border font-medium shrink-0"
-            style={{ color, borderColor: color }}
-          >
-            {ITEM_TYPE_LABELS[item.type]}
-          </span>
-          <span className="text-[11px] font-medium">{item.title}</span>
-          {item.price && (
-            <span className="ml-auto text-[10px] text-gray-400 shrink-0 whitespace-nowrap">
-              {item.price.toLocaleString()} {item.currency ?? localCurrency ?? ''}
+        </span>
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span
+              className="text-[10px] px-1 py-px rounded border font-medium shrink-0"
+              style={{ color, borderColor: color }}
+            >
+              {ITEM_TYPE_LABELS[item.type]}
             </span>
+            <span className="text-[11px] font-medium">{item.title}</span>
+            {item.price != null && (
+              <span className="ml-auto text-[10px] text-gray-400 shrink-0 whitespace-nowrap">
+                {item.price.toLocaleString()} {item.currency ?? localCurrency ?? ''}
+              </span>
+            )}
+          </div>
+          {(item.location?.name || item.notes) && (
+            <div className="text-[10px] text-gray-400 space-y-px mt-px">
+              {item.location?.name && (
+                <p className="flex items-center gap-0.5">
+                  <MapPin className="h-2 w-2 shrink-0" />{item.location.name}
+                </p>
+              )}
+              {item.notes && <p className="line-clamp-1">{item.notes}</p>}
+            </div>
           )}
         </div>
-        {(item.location?.name || item.notes) && (
-          <div className="ml-[calc(2.25rem+0.375rem)] text-[10px] text-gray-400 space-y-px mt-px">
-            {item.location?.name && (
-              <p className="flex items-center gap-0.5">
-                <MapPin className="h-2 w-2 shrink-0" />{item.location.name}
-              </p>
-            )}
-            {item.notes && <p className="line-clamp-1">{item.notes}</p>}
-          </div>
-        )}
       </div>
     </div>
   )

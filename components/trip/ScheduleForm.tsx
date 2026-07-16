@@ -18,6 +18,7 @@ import PlaceAutocompleteInput from '@/components/place/PlaceAutocompleteInput'
 import PlaceMapPicker from '@/components/place/PlaceMapPicker'
 import { SelectedPlace } from '@/lib/places'
 import { MapPin } from 'lucide-react'
+import { cn, formatDurationLabel, minutesToTime, parseTimeToMinutes, timeRangeMinutes } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,8 +37,8 @@ interface ScheduleFormProps {
 const EMPTY: Omit<ScheduleItem, 'id'> = {
   type: 'attraction',
   title: '',
-  time: '',
-  duration: undefined,
+  startTime: undefined,
+  endTime: undefined,
   transportToNext: undefined,
   notes: '',
   price: undefined,
@@ -52,6 +53,9 @@ const EMPTY: Omit<ScheduleItem, 'id'> = {
 function hasField(type: ScheduleItemType, field: string): boolean {
   return CATEGORY_EXTRA_FIELDS[type].includes(field)
 }
+
+// 이 일정이 얼마나 걸리는지 — 누르면 종료시각을 시작+N으로 맞춘다
+const DURATION_PRESETS = [30, 60, 120]
 
 const MAPS_ENABLED = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
@@ -127,6 +131,25 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
       setLocationLat(0)
       setLocationLng(0)
     }
+  }
+
+  const rangeMinutes = timeRangeMinutes(form.startTime, form.endTime)
+  const crossesMidnight = rangeMinutes != null && (parseTimeToMinutes(form.endTime) ?? 0) < (parseTimeToMinutes(form.startTime) ?? 0)
+
+  const changeStartTime = (value: string) => {
+    const start = parseTimeToMinutes(value)
+    if (start == null) {
+      // 입력 도중(불완전한 값)이면 <input type="time">이 ''를 준다 — 종료까지 건드리지 않는다.
+      setForm((prev) => ({ ...prev, startTime: value || undefined }))
+      return
+    }
+    setForm((prev) => {
+      const prevRange = timeRangeMinutes(prev.startTime, prev.endTime)
+      // 종료가 이미 있으면 소요시간을 유지한 채 통째로 옮긴다 — 그러지 않으면 시작만 당겼을 때
+      // 종료가 그대로 남아 소요시간이 엉뚱하게 늘거나 0이 된다. 비어 있으면 1시간을 채워준다.
+      const nextRange = prevRange ?? 60
+      return { ...prev, startTime: value, endTime: minutesToTime(start + nextRange) }
+    })
   }
 
   const resetLocations = () => {
@@ -208,37 +231,72 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
           <DialogTitle>{initial?.title ? '일정 수정' : '일정 추가'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 pt-2">
-          <div key="category-time" className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>카테고리</Label>
-              <Select
-                items={ITEM_TYPE_LABELS}
-                value={form.type}
-                onValueChange={(v) => {
-                  const type = v as ScheduleItemType
-                  setForm({ ...form, type })
-                  if (type === 'hotel' && !locationName.trim() && dayMatchedAccommodations.length === 1) {
-                    applyAccommodation(dayMatchedAccommodations[0])
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(ITEM_TYPE_LABELS) as ScheduleItemType[]).map((k) => (
-                    <SelectItem key={k} value={k}>{ITEM_TYPE_LABELS[k]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>시간</Label>
+          {/* 402px에서 콘텐츠 폭이 338px뿐이라 카테고리·시작·종료를 3열로 넣으면 각 105px가 되는데,
+              Input이 모바일에서 16px(iOS 줌 방지)이라 네이티브 time 입력이 잘린다. 카테고리를 전체 폭으로
+              빼고 시각 2개를 한 행에 둔다 — 카드 표시("10:00 ~ 11:30")와 모양이 같아지는 이점도 있다. */}
+          <div key="category" className="space-y-1.5">
+            <Label>카테고리</Label>
+            <Select
+              items={ITEM_TYPE_LABELS}
+              value={form.type}
+              onValueChange={(v) => {
+                const type = v as ScheduleItemType
+                setForm({ ...form, type })
+                if (type === 'hotel' && !locationName.trim() && dayMatchedAccommodations.length === 1) {
+                  applyAccommodation(dayMatchedAccommodations[0])
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(ITEM_TYPE_LABELS) as ScheduleItemType[]).map((k) => (
+                  <SelectItem key={k} value={k}>{ITEM_TYPE_LABELS[k]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div key="time-range" className="space-y-1.5">
+            <Label>시간</Label>
+            <div className="flex items-center gap-2">
               <Input
                 type="time"
-                value={form.time ?? ''}
-                onChange={(e) => setForm({ ...form, time: e.target.value })}
+                className="flex-1"
+                value={form.startTime ?? ''}
+                onChange={(e) => changeStartTime(e.target.value)}
               />
+              <span className="shrink-0 text-xs text-muted-foreground">~</span>
+              <Input
+                type="time"
+                className="flex-1"
+                // 시작이 없으면 종료만 있는 건 의미가 없다. 에러를 띄우는 대신 무효 상태를 못 만들게 한다.
+                disabled={!form.startTime}
+                value={form.endTime ?? ''}
+                onChange={(e) => setForm({ ...form, endTime: e.target.value || undefined })}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {DURATION_PRESETS.map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  disabled={!form.startTime}
+                  onClick={() => setForm({ ...form, endTime: minutesToTime(parseTimeToMinutes(form.startTime)! + mins) })}
+                  className={cn(
+                    'rounded-md border px-2 py-0.5 text-xs transition-colors disabled:pointer-events-none disabled:opacity-50',
+                    rangeMinutes === mins ? 'border-primary bg-primary/10 text-primary' : 'text-muted-foreground'
+                  )}
+                >
+                  {formatDurationLabel(mins)}
+                </button>
+              ))}
+              {rangeMinutes != null && (
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {crossesMidnight && <span className="mr-1 text-amber-600">익일</span>}
+                  {formatDurationLabel(rangeMinutes)}
+                </span>
+              )}
             </div>
           </div>
           <div key="title" className="space-y-1.5">
@@ -408,17 +466,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
               예약 필요{form.reservationNeeded ? ' ✓' : ''}
             </Button>
           )}
-          <div key="duration-transport-next" className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>소요시간 (분)</Label>
-              <Input
-                type="number"
-                min={0}
-                placeholder="예: 90"
-                value={form.duration ?? ''}
-                onChange={(e) => setForm({ ...form, duration: e.target.value ? Number(e.target.value) : undefined })}
-              />
-            </div>
+          <div key="transport-next" className="space-y-1.5">
             <div className="space-y-1.5">
               <Label>다음 장소 이동수단</Label>
               <Select

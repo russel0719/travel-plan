@@ -15,8 +15,8 @@ export interface ScheduleItem {
   id: string
   type: ScheduleItemType
   title: string
-  time?: string
-  duration?: number
+  startTime?: string                  // "HH:MM"
+  endTime?: string                    // "HH:MM" — startTime보다 이르면 익일로 본다
   location?: Location
   transportToNext?: TransportType
   notes?: string

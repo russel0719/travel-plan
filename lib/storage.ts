@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import { Trip } from './types'
+import { Trip, ScheduleItem } from './types'
+import { minutesToTime, parseTimeToMinutes } from './utils'
 import {
   assembleTrips,
   TripRow,
@@ -114,12 +115,38 @@ export async function removeTrip(tripId: string): Promise<MutationResult> {
   return { ok: true }
 }
 
+// 시각 모델을 바꾸기 전(time + duration분)에 저장된 localStorage 데이터가 남아 있을 수 있다.
+// 그대로 upsert하면 RPC가 startTime/endTime만 읽으므로 그 시각들이 조용히 사라진다.
+type LegacyScheduleItem = ScheduleItem & { time?: string; duration?: number }
+
+function normalizeLegacyTimes(trips: Trip[]): Trip[] {
+  return trips.map((trip) => ({
+    ...trip,
+    days: (trip.days ?? []).map((day) => ({
+      ...day,
+      items: (day.items ?? []).map((item) => {
+        const legacy = item as LegacyScheduleItem
+        if (legacy.startTime || !legacy.time) return item
+        const start = parseTimeToMinutes(legacy.time)
+        if (start == null) return item
+        const { time, duration, ...rest } = legacy
+        void time
+        return {
+          ...rest,
+          startTime: minutesToTime(start),
+          endTime: duration && duration > 0 && duration < 1440 ? minutesToTime(start + duration) : undefined,
+        }
+      }),
+    })),
+  }))
+}
+
 // localStorage 마이그레이션용 유틸
 export function getLocalTrips(): Trip[] {
   if (typeof window === 'undefined') return []
   try {
     const raw = localStorage.getItem(LOCAL_KEY)
-    return raw ? (JSON.parse(raw) as Trip[]) : []
+    return raw ? normalizeLegacyTimes(JSON.parse(raw) as Trip[]) : []
   } catch {
     return []
   }

@@ -1,7 +1,7 @@
 'use client'
 
 import { ScheduleItem as ScheduleItemType, ITEM_TYPE_LABELS, ITEM_TYPE_COLORS, MEAL_TYPE_LABELS, CHECK_TYPE_LABELS } from '@/lib/types'
-import { googleMapsUrl } from '@/lib/utils'
+import { formatTimeRange, googleMapsUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Pencil, Trash2, GripVertical, MapPin, Clock, ExternalLink } from 'lucide-react'
@@ -25,6 +25,7 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
 
   const color = ITEM_TYPE_COLORS[item.type]
   const mapsUrl = item.location ? googleMapsUrl(item.location) : null
+  const timeRange = formatTimeRange(item.startTime, item.endTime)
 
   return (
     <div ref={setNodeRef} style={style} className="group">
@@ -42,9 +43,9 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            {item.time && (
-              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                <Clock className="h-3 w-3" />{item.time}
+            {timeRange && (
+              <span className="text-xs text-muted-foreground flex items-center gap-0.5 tabular-nums">
+                <Clock className="h-3 w-3 shrink-0" />{timeRange}
               </span>
             )}
             <Badge
@@ -97,9 +98,6 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.notes}</p>
           )}
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            {item.duration && (
-              <p className="text-xs text-muted-foreground">{item.duration}분</p>
-            )}
             {item.price != null && (
               <p className="text-xs font-medium text-foreground">
                 {item.price.toLocaleString()} {item.currency ?? ''}

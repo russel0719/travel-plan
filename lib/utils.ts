@@ -40,3 +40,44 @@ export function getDayLabel(index: number): string {
   return `${index + 1}일차`
 }
 
+const MINUTES_PER_DAY = 24 * 60
+
+// "HH:MM" → 자정 기준 분. 형식이 어긋나면 null.
+export function parseTimeToMinutes(hhmm: string | undefined): number | null {
+  if (!hhmm) return null
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim())
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2])
+  if (h > 23 || min > 59) return null
+  return h * 60 + min
+}
+
+// 분 → "HH:MM". 자정을 넘거나 음수면 하루 안으로 감는다(23:30 + 60분 = 00:30).
+export function minutesToTime(minutes: number): string {
+  const m = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+}
+
+// 두 시각 사이의 분. 종료가 시작보다 이르면 익일로 본다 — 야간버스나 심야 일정이 실제로 있다.
+export function timeRangeMinutes(start: string | undefined, end: string | undefined): number | null {
+  const s = parseTimeToMinutes(start)
+  const e = parseTimeToMinutes(end)
+  if (s == null || e == null) return null
+  return e >= s ? e - s : e + MINUTES_PER_DAY - s
+}
+
+// 카드와 인쇄가 이 함수를 공유한다 — 각자 문자열을 만들면 표시가 서로 어긋난다.
+export function formatTimeRange(start: string | undefined, end: string | undefined): string | null {
+  if (start && end) return `${start} ~ ${end}`
+  return start || end || null
+}
+
+export function formatDurationLabel(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h && m) return `${h}시간 ${m}분`
+  if (h) return `${h}시간`
+  return `${m}분`
+}
+
