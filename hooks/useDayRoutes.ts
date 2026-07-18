@@ -74,10 +74,12 @@ async function runPool<T>(tasks: (() => Promise<T>)[], limit: number): Promise<v
  */
 export function useDayRoutes(days: DaySchedule[], enabled: boolean): DayRoutes {
   const [legs, setLegs] = useState<Map<LegKey, RouteLeg>>(new Map())
-  const [loading, setLoading] = useState(enabled)
+  // 어느 시그니처까지 조회를 끝냈는지. loading을 따로 두지 않고 이 값에서 파생시킨다 —
+  // effect 안에서 동기적으로 setState하면 렌더가 연쇄된다.
   // null 센티널이어야 한다. ''로 두면 "조회할 구간이 없음"(signature === '')과 초기값이 같아져
-  // effect가 조기 반환하고 loading이 영영 true로 남는다 — 인쇄 게이트가 열리지 않는다.
-  const doneRef = useRef<string | null>(null)
+  // 완료로 오인되거나 그 반대가 된다.
+  const [resolved, setResolved] = useState<string | null>(null)
+  const startedRef = useRef<string | null>(null)
 
   // 필요한 구간 목록을 원시값 문자열로 만든다 — 이게 effect의 유일한 트리거다
   const wanted: { key: LegKey; from: { lat: number; lng: number }; to: { lat: number; lng: number }; mode: TransportType }[] = []
@@ -98,17 +100,12 @@ export function useDayRoutes(days: DaySchedule[], enabled: boolean): DayRoutes {
   const signature = wanted.map((w) => w.key).join(';')
 
   useEffect(() => {
-    if (!enabled) {
-      setLoading(false)
-      return
-    }
-    if (doneRef.current === signature) return
-    doneRef.current = signature
+    if (!enabled) return
+    if (startedRef.current === signature) return
+    startedRef.current = signature
 
-    if (wanted.length === 0) {
-      setLoading(false)
-      return
-    }
+    // 조회할 구간이 없으면 상태를 건드릴 것도 없다 — 아래 loading 파생식이 이미 false를 낸다
+    if (wanted.length === 0) return
 
     let cancelled = false
     const collected = new Map<LegKey, RouteLeg>()
@@ -118,7 +115,6 @@ export function useDayRoutes(days: DaySchedule[], enabled: boolean): DayRoutes {
       return !hit
     })
 
-    setLoading(true)
     runPool(
       misses.map((w) => async () => {
         const r = await fetchRoute(w.from, w.to, w.mode, false)
@@ -135,7 +131,7 @@ export function useDayRoutes(days: DaySchedule[], enabled: boolean): DayRoutes {
     ).then(() => {
       if (cancelled) return
       setLegs(collected)
-      setLoading(false)
+      setResolved(signature)
     })
 
     return () => {
@@ -145,5 +141,6 @@ export function useDayRoutes(days: DaySchedule[], enabled: boolean): DayRoutes {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, enabled])
 
-  return { legs, loading }
+  // 조회할 구간이 있고, 그 조회가 아직 안 끝났을 때만 loading이다
+  return { legs, loading: enabled && wanted.length > 0 && resolved !== signature }
 }
