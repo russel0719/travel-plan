@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { DaySchedule, ITEM_TYPE_COLORS, TRANSPORT_COLORS } from '@/lib/types'
-import { fetchRoute, daySegments, BETWEEN_STOPS_MODE } from '@/lib/routes'
+import { fetchRoute, daySegments } from '@/lib/routes'
 import MapMock from './MapMock'
 import {
   Map,
@@ -12,8 +12,11 @@ import {
 } from '@vis.gl/react-google-maps'
 import { useEffect } from 'react'
 
-// 구간마다 이동수단이 다르지 않으므로 동선은 한 색으로 그린다
-const ROUTE_COLOR = '#3b82f6'
+// 도보 구간(대부분)의 색. '이동' 항목만 수단별 색을 쓴다.
+const ROUTE_COLOR = '#1d4ed8'
+// 선 밑에 까는 테두리 — 지도 바탕에서 선을 떼어내 가시성을 만든다
+const CASING_COLOR = '#ffffff'
+const LINE_WEIGHT = 5
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
@@ -41,8 +44,9 @@ function RouteLayer({ day }: RouteLayerProps) {
     const draw = async () => {
       for (const seg of segments) {
         const { from, to, mode } = seg
-        // 도보 구간은 한 색으로, '이동' 항목 구간은 그 수단의 색으로 구분한다
-        const color = mode === BETWEEN_STOPS_MODE ? ROUTE_COLOR : TRANSPORT_COLORS[mode]
+        // 도보는 어디서 나오든 같은 색이어야 한다 — 장소 사이 이동이든 '도보'로 지정한 이동
+        // 항목이든 사용자에겐 똑같은 걷기다. 나머지 수단만 수단별 색을 쓴다.
+        const color = mode === 'walk' ? ROUTE_COLOR : TRANSPORT_COLORS[mode]
 
         // 경로를 못 가져오면(항공, 서버 키 미설정 등) 직선으로 폴백한다.
         let path: google.maps.LatLngLiteral[] = [
@@ -67,18 +71,49 @@ function RouteLayer({ day }: RouteLayerProps) {
 
         if (cancelled) return
 
-        const line = new g.Polyline({
-          path,
-          geodesic: true,
-          strokeColor: color,
-          strokeOpacity: isDashed ? 0 : 0.8,
-          strokeWeight: 3,
-          icons: isDashed
-            ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.8, scale: 3, strokeColor: color }, offset: '0', repeat: '10px' }]
-            : [],
-          map,
-        })
-        lines.push(line)
+        // 흰 테두리를 깔고 그 위에 색 선을 얹는다(케이싱).
+        // 지도 바탕에는 파란 계열(물·철도·고속도로 표지)이 많아 선 하나만 그리면 묻힌다.
+        // 흰 테두리가 주변과 선 사이에 여백을 만들어 어떤 바탕 위에서도 선이 떠 보이게 한다 —
+        // Google 자체 길찾기도 같은 방식이다.
+        // 테두리는 점선 구간에서도 실선으로 깐다. 흰 점선과 색 점선을 번갈아 그리면 전체가
+        // 옅어져 오히려 더 안 보인다 — 흰 실선 위에 색 점선을 얹어야 점선이 또렷해진다.
+        lines.push(
+          new g.Polyline({
+            path,
+            geodesic: true,
+            strokeColor: CASING_COLOR,
+            strokeOpacity: 1,
+            strokeWeight: LINE_WEIGHT + 4,
+            zIndex: 1,
+            map,
+          })
+        )
+        lines.push(
+          new g.Polyline({
+            path,
+            geodesic: true,
+            strokeColor: color,
+            strokeOpacity: isDashed ? 0 : 1,
+            strokeWeight: LINE_WEIGHT,
+            icons: isDashed
+              ? [
+                  {
+                    icon: {
+                      path: 'M 0,-1 0,1',
+                      strokeOpacity: 1,
+                      strokeWeight: LINE_WEIGHT,
+                      scale: 1.6,
+                      strokeColor: color,
+                    },
+                    offset: '0',
+                    repeat: '14px',
+                  },
+                ]
+              : [],
+            zIndex: 2,
+            map,
+          })
+        )
       }
     }
 
