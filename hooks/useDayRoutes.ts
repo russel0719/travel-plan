@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { DaySchedule, ScheduleItem, TransportType } from '@/lib/types'
-import { fetchRoute } from '@/lib/routes'
+import { fetchRoute, daySegments } from '@/lib/routes'
 
 export interface RouteLeg {
   encodedPolyline: string | null
@@ -85,15 +85,13 @@ export function useDayRoutes(days: DaySchedule[], enabled: boolean): DayRoutes {
   const wanted: { key: LegKey; from: { lat: number; lng: number }; to: { lat: number; lng: number }; mode: TransportType }[] = []
   if (enabled) {
     for (const day of days) {
-      const stops = mapStopsOf(day)
-      for (let i = 0; i < stops.length - 1; i++) {
-        const from = stops[i].location!
-        const to = stops[i + 1].location!
-        const mode = stops[i].transportToNext
-        // flight은 도로 경로 대상이 아니고, 이동수단이 없으면 직선으로 둔다
-        if (!mode || mode === 'flight') continue
-        const key = legKey(from, to, mode)
-        if (!wanted.some((w) => w.key === key)) wanted.push({ key, from, to, mode })
+      for (const seg of daySegments(day.items)) {
+        // 항공은 도로 경로가 없다 — 조회하지 않고 직선으로 둔다
+        if (seg.mode === 'flight') continue
+        const key = legKey(seg.from, seg.to, seg.mode)
+        if (!wanted.some((w) => w.key === key)) {
+          wanted.push({ key, from: seg.from, to: seg.to, mode: seg.mode })
+        }
       }
     }
   }

@@ -19,7 +19,6 @@ export interface ScheduleItem {
   startTime?: string                  // "HH:MM"
   endTime?: string                    // "HH:MM" — startTime보다 이르면 익일로 본다
   location?: Location
-  transportToNext?: TransportType
   notes?: string
   price?: number
   currency?: string
@@ -28,7 +27,7 @@ export interface ScheduleItem {
   reservationNeeded?: boolean         // restaurant / attraction / hotel — 예약 필요 여부
   checkType?: CheckType               // hotel 전용 — 체크인/체크아웃 구분
   fromLocation?: Location             // transport 전용 — 출발지 (location은 도착지로 사용)
-  transportMode?: TransportType       // transport 전용 — 이 구간 자체의 이동수단 (transportToNext는 다음 일정으로 이동할 때의 수단)
+  transportMode?: TransportType       // transport 전용 — 이 이동 항목 자체의 수단
   placePhotoUrl?: string               // Google Place Details — 대표 사진 URL (location 선택 시에만 채워짐)
 }
 

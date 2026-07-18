@@ -5,6 +5,7 @@ import { DaySchedule, ITEM_TYPE_COLORS } from '@/lib/types'
 import { buildDayMapUrl, stopLabel, MapLeg, MapStop } from '@/lib/staticMap'
 import { formatDurationLabel } from '@/lib/utils'
 import { legKey, mapStopsOf, RouteLeg } from '@/hooks/useDayRoutes'
+import { daySegments } from '@/lib/routes'
 
 interface DayRouteMapProps {
   day: DaySchedule
@@ -27,19 +28,11 @@ export default function DayRouteMap({ day, legs, tall, fallback }: DayRouteMapPr
   // 매 렌더마다 URL 문자열이 새로 만들어지면 <img src>가 바뀌어 이미지를 다시 받는다(과금).
   const built = useMemo(() => {
     const mapStops: MapStop[] = stops.map((s) => ({ lat: s.location!.lat, lng: s.location!.lng, type: s.type }))
-    const mapLegs: MapLeg[] = []
-    for (let i = 0; i < stops.length - 1; i++) {
-      const from = stops[i].location!
-      const to = stops[i + 1].location!
-      const mode = stops[i].transportToNext
-      const leg = mode ? legs.get(legKey(from, to, mode)) : undefined
-      mapLegs.push({
-        encodedPolyline: leg?.encodedPolyline ?? null,
-        mode,
-        from: { lat: from.lat, lng: from.lng },
-        to: { lat: to.lat, lng: to.lng },
-      })
-    }
+    const mapLegs: MapLeg[] = daySegments(day.items).map((seg) => ({
+      encodedPolyline: legs.get(legKey(seg.from, seg.to, seg.mode))?.encodedPolyline ?? null,
+      from: { lat: seg.from.lat, lng: seg.from.lng },
+      to: { lat: seg.to.lat, lng: seg.to.lng },
+    }))
     return buildDayMapUrl(mapStops, mapLegs, { width, height, apiKey: API_KEY })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day.date, stops.length, legs, width, height])
@@ -48,16 +41,14 @@ export default function DayRouteMap({ day, legs, tall, fallback }: DayRouteMapPr
   const travel = useMemo(() => {
     let seconds = 0
     let meters = 0
-    for (let i = 0; i < stops.length - 1; i++) {
-      const mode = stops[i].transportToNext
-      if (!mode) continue
-      const leg = legs.get(legKey(stops[i].location!, stops[i + 1].location!, mode))
+    for (const seg of daySegments(day.items)) {
+      const leg = legs.get(legKey(seg.from, seg.to, seg.mode))
       if (!leg) continue
       seconds += leg.durationSeconds
       meters += leg.distanceMeters
     }
     return { seconds, meters }
-  }, [stops, legs])
+  }, [day.items, legs])
 
   if (!built || failed) return <>{fallback}</>
 

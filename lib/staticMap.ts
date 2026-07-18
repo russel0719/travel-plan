@@ -1,4 +1,4 @@
-import { ScheduleItemType, TransportType, ITEM_TYPE_COLORS, TRANSPORT_COLORS } from './types'
+import { ScheduleItemType, ITEM_TYPE_COLORS } from './types'
 import { decodePolyline, encodePolyline, simplifyPath, LatLng } from './polyline'
 
 const ENDPOINT = 'https://maps.googleapis.com/maps/api/staticmap'
@@ -15,7 +15,6 @@ export interface MapStop {
 export interface MapLeg {
   /** 이 구간의 도로 경로. 없으면 두 지점을 직선으로 잇는다 */
   encodedPolyline: string | null
-  mode: TransportType | undefined
   from: LatLng
   to: LatLng
 }
@@ -63,8 +62,11 @@ function markerParams(stops: MapStop[]): string[][] {
   })
 }
 
-function pathParam(points: LatLng[], mode: TransportType | undefined): string[] {
-  const color = toMapColor(mode ? TRANSPORT_COLORS[mode] : '#6b7280')
+// 장소 사이 이동은 모두 도보라 구간마다 색을 나눌 이유가 없다
+const ROUTE_COLOR = '#3b82f6'
+
+function pathParam(points: LatLng[]): string[] {
+  const color = toMapColor(ROUTE_COLOR)
   const encoded = encodePolyline(points)
   return ['path', `color:${color}|weight:4|enc:${encoded}`]
 }
@@ -104,17 +106,17 @@ export function buildDayMapUrl(
   }))
 
   // L0: 원본 경로 그대로
-  const l0 = buildUrl([...base, ...decoded.map((d) => pathParam(d.points, d.leg.mode)), ...markers], opts.apiKey)
+  const l0 = buildUrl([...base, ...decoded.map((d) => pathParam(d.points)), ...markers], opts.apiKey)
   if (l0.length <= URL_BUDGET) return { url: l0, level: 0 }
 
   // L1: 인쇄 해상도에서 안 보이는 점을 버린다 — 보통 여기서 예산 안으로 들어온다
   const simplified = decoded.map((d) => ({ ...d, points: simplifyPath(d.points, degPerPixel) }))
-  const l1 = buildUrl([...base, ...simplified.map((d) => pathParam(d.points, d.leg.mode)), ...markers], opts.apiKey)
+  const l1 = buildUrl([...base, ...simplified.map((d) => pathParam(d.points)), ...markers], opts.apiKey)
   if (l1.length <= URL_BUDGET) return { url: l1, level: 1 }
 
   // L2: 도로 모양을 포기하고 정류지를 직선으로 잇는다 — 순서와 대략적 형태는 남는다
   const l2 = buildUrl(
-    [...base, ...decoded.map((d) => pathParam([d.leg.from, d.leg.to], d.leg.mode)), ...markers],
+    [...base, ...decoded.map((d) => pathParam([d.leg.from, d.leg.to])), ...markers],
     opts.apiKey
   )
   if (l2.length <= URL_BUDGET) return { url: l2, level: 2 }

@@ -39,7 +39,6 @@ const EMPTY: Omit<ScheduleItem, 'id'> = {
   title: '',
   startTime: undefined,
   endTime: undefined,
-  transportToNext: undefined,
   notes: '',
   price: undefined,
   currency: undefined,
@@ -474,26 +473,6 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
               예약 필요{form.reservationNeeded ? ' ✓' : ''}
             </Button>
           )}
-          <div key="transport-next" className="space-y-1.5">
-            <div className="space-y-1.5">
-              <Label>다음 장소 이동수단</Label>
-              <Select
-                items={TRANSPORT_SELECT_ITEMS}
-                value={form.transportToNext ?? ''}
-                onValueChange={(v) => setForm({ ...form, transportToNext: v ? v as TransportType : undefined })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="선택 안함" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">선택 안함</SelectItem>
-                  {(Object.keys(TRANSPORT_LABELS) as TransportType[]).map((k) => (
-                    <SelectItem key={k} value={k}>{TRANSPORT_LABELS[k]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           <div key="price-currency" className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>금액</Label>

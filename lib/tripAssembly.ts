@@ -54,7 +54,6 @@ export interface ScheduleItemRow {
   from_location_lat: number | string | null
   from_location_lng: number | string | null
   from_location_address: string | null
-  transport_to_next: string | null
   notes: string | null
   price: number | string | null
   currency: string | null
@@ -188,7 +187,6 @@ function toScheduleItem(row: ScheduleItemRow): ScheduleItem {
     startTime: row.start_time ?? undefined,
     endTime: row.end_time ?? undefined,
     location: toLocation(row.location_name, row.location_lat, row.location_lng, row.location_address, row.location_place_id),
-    transportToNext: (row.transport_to_next as TransportType | null) ?? undefined,
     notes: row.notes ?? undefined,
     price: toOptionalNumber(row.price),
     currency: row.currency ?? undefined,
