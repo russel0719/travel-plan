@@ -47,45 +47,31 @@ function RouteDiagram({ day }: { day: DaySchedule }) {
   if (stops.length === 0) return null
 
   return (
-    <div className="mb-3">
-      <div className="flex flex-wrap items-start gap-y-3">
-        {stops.map((item, idx) => {
-          const color = ITEM_TYPE_COLORS[item.type]
-          const isLast = idx === stops.length - 1
-          const markerNum = idx + 1
-
-          return (
-            <div key={item.id} className="flex items-start">
-              {/* 마커 + 라벨 */}
-              <div className="flex flex-col items-center" style={{ width: 68 }}>
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0"
-                  style={{ backgroundColor: color }}
-                >
-                  {markerNum}
-                </div>
-                <p className="text-center text-[9px] text-gray-500 mt-1 leading-tight px-1 break-words w-full">
-                  {item.location!.name}
-                </p>
-                {/* 폭 68px에 9px 폰트라 범위는 안 들어간다 — 동선 다이어그램의 관심사는 순서와
-                    도착 시각이므로 시작 시각만 보여준다 */}
-                {item.startTime && (
-                  <p className="text-[9px] text-gray-400 tabular-nums">{item.startTime}</p>
-                )}
-              </div>
-              {/* 연결 화살표 */}
-              {!isLast && (
-                <div className="flex items-center mt-3 mx-0.5">
-                  <div className="h-px bg-gray-300" style={{ width: 16 }} />
-                  <svg width="5" height="8" viewBox="0 0 5 8" fill="none" className="shrink-0">
-                    <path d="M0 0L5 4L0 8" fill="none" stroke="#d1d5db" strokeWidth="1.5" />
-                  </svg>
-                </div>
-              )}
+    // 예전엔 flex-wrap + 항목 사이 화살표였는데, 줄바꿈이 일어나면 줄 끝에 갈 곳 없는 화살표가
+    // 매달리고 다음 줄 첫 항목에는 들어오는 화살표가 없었다. "이 셀이 줄의 마지막인가"는 CSS로
+    // 알 수 없으므로(:nth-child는 줄을 인식하지 못한다) 화살표를 없앤다 — 순서는 이미 마커 안의
+    // 번호가 말해주므로 중복 정보였다. grid로 바꾸면 셀 폭도 저절로 정렬된다.
+    <div className="mb-3 grid grid-cols-[repeat(auto-fill,4.25rem)] gap-y-3">
+      {stops.map((item, idx) => {
+        const color = ITEM_TYPE_COLORS[item.type]
+        return (
+          <div key={item.id} className="flex flex-col items-center">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0"
+              style={{ backgroundColor: color }}
+            >
+              {idx + 1}
             </div>
-          )
-        })}
-      </div>
+            <p className="text-center text-[0.6rem] text-gray-600 mt-1 leading-tight px-1 break-words w-full">
+              {item.location!.name}
+            </p>
+            {/* 셀이 좁아 범위는 안 들어간다 — 동선의 관심사는 순서와 도착 시각이라 시작만 */}
+            {item.startTime && (
+              <p className="text-[0.6rem] text-gray-500 tabular-nums">{item.startTime}</p>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -96,7 +82,8 @@ function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCur
   // 마커 번호 표시용 — 부모에서 index 넘겨받으면 더 정확하지만 여기선 위치 여부만 활용
   const timeRange = formatTimeRange(item.startTime, item.endTime)
   return (
-    <div className="flex items-start gap-2 py-[3px]">
+    // 한 줄이 페이지 경계에서 반으로 갈리는 걸 막는다 (한 페이지보다 작으므로 avoid가 유효)
+    <div className="print-avoid-break flex items-start gap-2 py-[3px]">
       {/* 색상 바 */}
       <div className="w-0.5 self-stretch rounded-full shrink-0" style={{ backgroundColor: color }} />
       {/* 시간을 grid 트랙으로 잡으면 본문 들여쓰기가 구조적으로 따라온다 — 예전엔 시간 span의 w-9와
@@ -104,7 +91,7 @@ function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCur
           "10:00 ~ 11:30"으로 길어지면 정렬이 깨졌다. 시간이 없는 항목도 열이 유지돼 정렬이 맞는다. */}
       {/* 5rem은 "10:00 ~ 11:30"의 실측 폭(78px, 10px tabular-nums + Clock 아이콘) 기준 */}
       <div className="flex-1 min-w-0 grid grid-cols-[5rem_1fr] gap-x-1.5">
-        <span className="text-[10px] text-gray-400 tabular-nums whitespace-nowrap flex items-center gap-0.5">
+        <span className="text-[0.65rem] text-gray-600 tabular-nums whitespace-nowrap flex items-center gap-0.5">
           {timeRange && (
             <>
               <Clock className="h-2 w-2 shrink-0" />{timeRange}
@@ -114,20 +101,20 @@ function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCur
         <div className="min-w-0">
           <div className="flex items-baseline gap-1.5 flex-wrap">
             <span
-              className="text-[10px] px-1 py-px rounded border font-medium shrink-0"
+              className="text-[0.65rem] px-1 py-px rounded border font-medium shrink-0"
               style={{ color, borderColor: color }}
             >
               {ITEM_TYPE_LABELS[item.type]}
             </span>
-            <span className="text-[11px] font-medium">{item.title}</span>
+            <span className="text-[0.7rem] font-medium">{item.title}</span>
             {item.price != null && (
-              <span className="ml-auto text-[10px] text-gray-400 shrink-0 whitespace-nowrap">
+              <span className="ml-auto text-[0.65rem] text-gray-600 shrink-0 whitespace-nowrap">
                 {item.price.toLocaleString()} {item.currency ?? localCurrency ?? ''}
               </span>
             )}
           </div>
           {(item.location?.name || item.notes) && (
-            <div className="text-[10px] text-gray-400 space-y-px mt-px">
+            <div className="text-[0.65rem] text-gray-600 space-y-px mt-px">
               {item.location?.name && (
                 <p className="flex items-center gap-0.5">
                   <MapPin className="h-2 w-2 shrink-0" />{item.location.name}
@@ -183,14 +170,15 @@ export default function PrintPage({ params }: PageProps) {
       </div>
 
       <div className="max-w-[210mm] mx-auto bg-white print:max-w-none print:mx-0 my-8 print:my-0 shadow-xl print:shadow-none">
-        <div className="px-12 py-10 print:px-10 print:py-8 space-y-7">
+        {/* 인쇄 시 패딩을 0으로 — 여백은 @page가 소유한다(겹치면 본문 폭만 좁아진다) */}
+        <div className="px-12 py-10 print:px-0 print:py-0 space-y-7">
 
           {/* ── 제목 헤더 ── */}
           <header className="print-avoid-break border-b-2 border-gray-900 pb-5">
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight leading-none">{trip.title}</h1>
-                <p className="text-gray-400 mt-2 text-sm flex items-center gap-1">
+                <p className="text-gray-600 mt-2 text-sm flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" />{trip.destination}
                 </p>
               </div>
@@ -207,7 +195,7 @@ export default function PrintPage({ params }: PageProps) {
             {trip.isInternational && ((trip.flights ?? []).length > 0 || (trip.accommodations ?? []).length > 0) && (
               <div className="mt-4 space-y-1.5">
                 {(trip.flights ?? []).map((f) => (
-                  <div key={f.id} className="flex items-center gap-2 text-[11px] bg-indigo-50 rounded px-3 py-1.5">
+                  <div key={f.id} className="flex items-center gap-2 text-[0.7rem] bg-indigo-50 rounded px-3 py-1.5">
                     <span className="font-semibold text-indigo-700 w-6 shrink-0">
                       {f.direction === 'outbound' ? '↗' : '↙'}
                     </span>
@@ -218,10 +206,10 @@ export default function PrintPage({ params }: PageProps) {
                       {' → '}
                       {f.arrivalAirport} <strong>{f.arrivalTime}</strong>
                     </span>
-                    <span className="text-gray-400">{f.departureDate}</span>
+                    <span className="text-gray-600">{f.departureDate}</span>
                     {f.bookingRef && (
                       <>
-                        <span className="text-gray-300">|</span>
+                        <span className="text-gray-500">|</span>
                         <span className="flex items-center gap-0.5 text-gray-500">
                           <Ticket className="h-2.5 w-2.5" />{f.bookingRef}
                         </span>
@@ -233,11 +221,11 @@ export default function PrintPage({ params }: PageProps) {
                   </div>
                 ))}
                 {(trip.accommodations ?? []).map((a) => (
-                  <div key={a.id} className="flex items-center gap-2 text-[11px] bg-violet-50 rounded px-3 py-1.5 flex-wrap">
+                  <div key={a.id} className="flex items-center gap-2 text-[0.7rem] bg-violet-50 rounded px-3 py-1.5 flex-wrap">
                     <span className="font-semibold text-violet-700 w-6 shrink-0">🏨</span>
                     <span className="font-semibold text-gray-700">{a.name}</span>
-                    {a.address && <span className="text-gray-400">{a.address}</span>}
-                    <span className="text-gray-300">|</span>
+                    {a.address && <span className="text-gray-600">{a.address}</span>}
+                    <span className="text-gray-500">|</span>
                     <span className="text-gray-600">
                       체크인 <strong>{a.checkInDate?.slice(5)}</strong>{a.checkInTime && ` ${a.checkInTime}`}
                       {' ~ '}
@@ -245,7 +233,7 @@ export default function PrintPage({ params }: PageProps) {
                     </span>
                     {(a.bookingPlatform || a.bookingRef) && (
                       <>
-                        <span className="text-gray-300">|</span>
+                        <span className="text-gray-500">|</span>
                         <span className="flex items-center gap-1 text-gray-500">
                           {a.bookingPlatform}
                           {a.bookingRef && (
@@ -258,7 +246,7 @@ export default function PrintPage({ params }: PageProps) {
                     )}
                     {a.phone && (
                       <>
-                        <span className="text-gray-300">|</span>
+                        <span className="text-gray-500">|</span>
                         <span className="flex items-center gap-0.5 text-gray-500">
                           <Phone className="h-2.5 w-2.5" />{a.phone}
                         </span>
@@ -275,19 +263,21 @@ export default function PrintPage({ params }: PageProps) {
 
           {/* ── 일자별 일정 ── */}
           {trip.days.map((day, idx) => (
-            <section key={day.date} className="print-avoid-break space-y-2">
-              {/* 날짜 제목 */}
-              <div className="flex items-center gap-2.5 border-b pb-1.5">
+            // 하루 전체에는 avoid를 걸지 않는다 — 페이지보다 길면 무시되면서 앞 페이지에
+            // 큰 여백만 남긴다. 대신 제목 행과 일정 한 줄 단위로 avoid를 건다.
+            <section key={day.date} className="space-y-2">
+              {/* 날짜 제목 — 제목만 페이지 하단에 홀로 남지 않게 */}
+              <div className="print-avoid-break print-break-after-avoid flex items-center gap-2.5 border-b pb-1.5">
                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-900 text-white text-xs font-bold shrink-0">
                   {idx + 1}
                 </span>
                 <h2 className="text-base font-bold">{getDayLabel(idx)}</h2>
-                <span className="text-sm text-gray-400 font-normal">{formatDate(day.date)}</span>
-                <span className="ml-auto text-xs text-gray-400">{day.items.length}개 일정</span>
+                <span className="text-sm text-gray-600 font-normal">{formatDate(day.date)}</span>
+                <span className="ml-auto text-xs text-gray-600">{day.items.length}개 일정</span>
               </div>
 
               {day.items.length === 0 ? (
-                <p className="text-xs text-gray-400 italic pl-8">일정 없음</p>
+                <p className="text-xs text-gray-600 italic pl-8">일정 없음</p>
               ) : (
                 <>
                   {/* 동선 다이어그램 */}
@@ -328,8 +318,8 @@ export default function PrintPage({ params }: PageProps) {
                         <tr key={bi.id} className="border-b border-gray-50">
                           <td className="py-[3px] text-gray-700">{bi.label || BUDGET_CATEGORY_LABELS[bi.category]}</td>
                           <td className="py-[3px] text-right text-gray-500">₩{bi.plannedKRW.toLocaleString()}</td>
-                          <td className="py-[3px] text-right">{actual ? `₩${actual.toLocaleString()}` : <span className="text-gray-300">-</span>}</td>
-                          <td className={`py-[3px] text-right font-semibold ${over ? 'text-red-500' : actual ? 'text-emerald-600' : 'text-gray-300'}`}>
+                          <td className="py-[3px] text-right">{actual ? `₩${actual.toLocaleString()}` : <span className="text-gray-500">-</span>}</td>
+                          <td className={`py-[3px] text-right font-semibold ${over ? 'text-red-500' : actual ? 'text-emerald-600' : 'text-gray-500'}`}>
                             {actual ? `${over ? '+' : '-'}₩${Math.abs(diff).toLocaleString()}` : '-'}
                           </td>
                         </tr>
@@ -349,12 +339,12 @@ export default function PrintPage({ params }: PageProps) {
                 </table>
                 <div className="text-right space-y-1 shrink-0">
                   {trip.budget && (
-                    <p className="text-[10px] text-gray-400">
+                    <p className="text-[0.65rem] text-gray-600">
                       1 {trip.budget.localCurrency} = ₩{trip.budget.exchangeRate}
                     </p>
                   )}
                   <div className={`rounded px-3 py-2 text-right ${totalActual <= totalPlanned ? 'bg-emerald-50' : 'bg-red-50'}`}>
-                    <p className="text-[10px] text-gray-500">예산 대비</p>
+                    <p className="text-[0.65rem] text-gray-500">예산 대비</p>
                     <p className={`text-base font-bold ${totalActual <= totalPlanned ? 'text-emerald-600' : 'text-red-500'}`}>
                       {totalActual <= totalPlanned ? '절약' : '초과'}
                     </p>
@@ -368,7 +358,7 @@ export default function PrintPage({ params }: PageProps) {
           )}
 
           {/* ── 푸터 ── */}
-          <footer className="border-t pt-3 text-center text-[10px] text-gray-300 print-avoid-break">
+          <footer className="border-t pt-3 text-center text-[0.65rem] text-gray-500 print-avoid-break">
             여행 플래너 · {new Date().toLocaleDateString('ko-KR')} 출력
           </footer>
         </div>

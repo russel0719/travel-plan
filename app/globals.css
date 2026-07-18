@@ -130,15 +130,43 @@
 }
 
 @media print {
+  /* 여백은 @page가 단독으로 소유한다. 인쇄 컨테이너에 print:px-* 를 또 주면 이중으로
+     겹쳐 본문 폭이 좁아진다(예전에 좌우 24.6mm까지 먹었다). 하단만 푸터 자리로 조금 넓게. */
   @page {
     size: A4 portrait;
-    margin: 16mm 14mm;
+    margin: 12mm 12mm 14mm;
   }
 
+  /* root font-size가 문서 전체 밀도를 제어한다 — 인쇄물이 빽빽하거나 성기면 이 값만 바꾼다.
+     단 그러려면 자식들이 rem 기반이어야 한다(text-[10px] 같은 px 하드코딩은 안 따라온다). */
   html, body {
     background: white !important;
-    font-size: 11pt;
+    font-size: 10.5pt;
     color: #111 !important;
+  }
+
+  /* 브라우저 인쇄는 기본적으로 배경 그래픽을 끈다. 이게 없으면 배경색 위에 흰 글씨를 얹은
+     요소(번호 마커, 날짜 뱃지)가 흰 바탕에 흰 글씨가 되어 통째로 사라지고, 타입별 색상 바
+     같은 색 코딩도 전부 무력화된다. 사용자가 인쇄 설정에서 "배경 그래픽"을 켜야만 보이던
+     상태였다. 상속이 끊기는 경우가 있어 전역으로 건다(비용 없음). */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  p, li {
+    orphans: 2;
+    widows: 2;
+  }
+
+  /* 표가 페이지를 넘길 때 헤더를 반복 */
+  thead {
+    display: table-header-group;
+  }
+
+  /* 한 페이지를 넘길 수 없는 작은 단위들 — 여기 avoid는 항상 유효하다 */
+  tr, img, figure {
+    break-inside: avoid;
   }
 
   .print-hide {
@@ -149,7 +177,15 @@
     break-before: page;
   }
 
+  /* ⚠️ 페이지보다 커질 수 있는 요소에는 절대 걸지 말 것 — 브라우저가 avoid를 무시하면서
+     앞 페이지에 큰 여백만 남긴다(하루 일정 전체에 걸어놨다가 겪은 문제다). 제목 행, 지도,
+     일정 한 줄처럼 한 페이지 안에 확실히 들어가는 단위에만 쓴다. */
   .print-avoid-break {
     break-inside: avoid;
+  }
+
+  /* 제목만 페이지 맨 아래 홀로 남는 걸 방지 */
+  .print-break-after-avoid {
+    break-after: avoid;
   }
 }
