@@ -12,10 +12,11 @@ import {
 import { computeActuals } from '@/lib/budget'
 import { formatDate, formatTimeRange, getDayLabel } from '@/lib/utils'
 import { useDayRoutes } from '@/hooks/useDayRoutes'
-import { parsePrintOptions } from '@/lib/printOptions'
+import { parsePrintOptions, serializePrintOptions } from '@/lib/printOptions'
 import { waitForAssets, sanitizeFilename } from '@/lib/printReady'
 import DayRouteMap from '@/components/print/DayRouteMap'
-import { Printer, ArrowLeft, MapPin, Clock, Ticket, Phone, Wallet, Loader2 } from 'lucide-react'
+import PrintOptionsDialog from '@/components/trip/PrintOptionsDialog'
+import { Printer, ArrowLeft, MapPin, Clock, Ticket, Phone, Wallet, Loader2, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface PageProps {
@@ -148,6 +149,7 @@ function PrintPageInner({ id }: { id: string }) {
   const { legs, loading: routesLoading } = useDayRoutes(trip?.days ?? [], opts.map && !!trip)
 
   const printedRef = useRef(false) // StrictMode의 effect 2회 실행에 state는 늦다
+  const [optionsOpen, setOptionsOpen] = useState(false)
 
   useEffect(() => { if (!hydrated) hydrate() }, [hydrated, hydrate])
   useEffect(() => { if (hydrated && !trip) router.push('/') }, [hydrated, trip, router])
@@ -191,10 +193,27 @@ function PrintPageInner({ id }: { id: string }) {
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-1.5" />돌아가기
         </Button>
-        <Button size="sm" onClick={() => window.print()}>
-          <Printer className="h-4 w-4 mr-1.5" />인쇄 / PDF 저장
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* 결과를 보고 조정할 때 뒤로 갈 필요가 없게 여기에도 둔다 */}
+          <Button variant="outline" size="sm" onClick={() => setOptionsOpen(true)}>
+            <SlidersHorizontal className="h-4 w-4 mr-1.5" />옵션 변경
+          </Button>
+          <Button size="sm" onClick={() => window.print()}>
+            <Printer className="h-4 w-4 mr-1.5" />인쇄 / PDF 저장
+          </Button>
+        </div>
       </div>
+
+      <PrintOptionsDialog
+        open={optionsOpen}
+        onClose={() => setOptionsOpen(false)}
+        onConfirm={(next) => {
+          setOptionsOpen(false)
+          // 쿼리만 갈아끼워 제자리에서 다시 그린다. auto=1이면 새 옵션으로 인쇄가 다시 뜬다.
+          printedRef.current = false
+          router.replace(`?${serializePrintOptions(next)}`)
+        }}
+      />
 
       <div className="max-w-[210mm] mx-auto bg-white print:max-w-none print:mx-0 my-8 print:my-0 shadow-xl print:shadow-none">
         {/* 인쇄 시 패딩을 0으로 — 여백은 @page가 소유한다(겹치면 본문 폭만 좁아진다) */}

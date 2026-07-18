@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { Trip } from '@/lib/types'
+import PrintOptionsDialog from './PrintOptionsDialog'
+import { serializePrintOptions } from '@/lib/printOptions'
 import { formatDate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,6 +20,7 @@ export default function TripHeader({ trip, onUpdate }: TripHeaderProps) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(trip.title)
+  const [printOptionsOpen, setPrintOptionsOpen] = useState(false)
 
   const handleSave = () => {
     if (title.trim()) onUpdate({ title: title.trim() })
@@ -71,11 +74,19 @@ export default function TripHeader({ trip, onUpdate }: TripHeaderProps) {
         variant="outline"
         size="sm"
         className="shrink-0"
-        onClick={() => window.open(`/trip/${trip.id}/print`, '_blank')}
+        onClick={() => setPrintOptionsOpen(true)}
       >
         <FileDown className="h-4 w-4 md:mr-1.5" />
         <span className="hidden md:inline">PDF 저장</span>
       </Button>
+      <PrintOptionsDialog
+        open={printOptionsOpen}
+        onClose={() => setPrintOptionsOpen(false)}
+        onConfirm={(options) => {
+          setPrintOptionsOpen(false)
+          window.open(`/trip/${trip.id}/print?${serializePrintOptions(options)}`, '_blank')
+        }}
+      />
     </div>
   )
 }
