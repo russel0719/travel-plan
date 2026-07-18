@@ -21,6 +21,11 @@
 - 일정 항목의 금액을 예산에 자동 연동
 - 현지 통화 및 환율 설정
 
+### 일정 PDF 내보내기
+- 날짜별 동선 지도(번호 마커 + 실제 도로 경로)를 넣은 인쇄물
+- 포함 항목(지도·항공/숙박·예산·메모)과 "하루를 한 페이지에"를 선택 가능
+- 장소 주소·예약 정보까지 담아 종이만 들고도 다닐 수 있게
+
 ### 지도 시각화
 - Google Maps에 일정 장소 마커 표시
 - Google Routes API로 계산한 실제 도로 경로를 동선으로 표시(직선 폴백 지원)
@@ -78,7 +83,8 @@
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Google Maps (브라우저용 — Places API (New) 활성화 필요)
+# Google Maps (브라우저용 — Places API (New), Maps Static API 활성화 필요)
+# Maps Static API가 없으면 PDF의 날짜별 동선 지도가 빠진다(앱은 정상 동작)
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 
 # Google Routes API (서버 전용 — NEXT_PUBLIC_ 접두사 없음, 별도 키로 발급하고 Routes API 활성화 필요)

@@ -45,6 +45,10 @@ flowchart LR
 | `lib/places.ts` | `SelectedPlace` + `fetchSelectedPlace` — 검색·지도 클릭이 만나는 수렴점 |
 | `hooks/usePlaceSuggestions.ts` | 장소 자동완성 제안 조회 (디바운스·세션토큰·race guard) |
 | `components/place/*` | 자동완성 입력(`PlaceAutocompleteInput`)과 지도 선택(`PlaceMapPicker`) |
+| `lib/budget.ts` | `toKRW`/`computeActuals` — 화면과 인쇄가 **반드시 공유** |
+| `lib/staticMap.ts` · `lib/polyline.ts` | 인쇄용 정적 지도 URL 조립 (순수, Node에서 테스트 가능) |
+| `lib/printOptions.ts` · `lib/printReady.ts` | 인쇄 옵션(쿼리스트링)과 인쇄 준비 게이트 |
+| `hooks/useDayRoutes.ts` | 인쇄용 구간 경로 병렬 조회 + 중복제거 + 세션 캐시 |
 | `proxy.ts` | Supabase 세션 쿠키 갱신 미들웨어 (Next.js 16은 `middleware.ts`가 아니라 `proxy.ts`) |
 | `app/api/compute-route/route.ts` | Routes API 프록시 — 서버 전용 키를 숨기려고 존재 |
 | `app/api/generate-report/route.ts` | NVIDIA(Llama 3.3 70B) 후기 생성 프록시 |
@@ -182,6 +186,18 @@ transport:  ['fromLocation', 'transportMode'],
 **좌표에는 두 종류가 있다.** 검색으로 고른 좌표는 이름과 한 쌍이라 이름을 고치면 무효화하는 게 맞지만, 지도에서 찍거나 숙소에서 가져온 좌표는 이름과 무관하게 살아남아야 한다(`ScheduleForm`의 `coordsPinned`). 이걸 구분하지 않으면 지도에서 찍고 이름을 지웠을 때 좌표가 조용히 버려진다.
 
 **Base UI `Select`에 `items` prop을 넘기지 않으면** 트리거에 라벨 대신 raw value가 표시된다. `ScheduleForm`의 `TRANSPORT_SELECT_ITEMS` 같은 상수가 그래서 있다.
+
+**인쇄 CSS에서 `print-color-adjust: exact`를 빼지 말 것.** 브라우저 인쇄는 기본적으로 배경 그래픽을 끄기 때문에, 이게 없으면 배경색 위의 흰 글씨(번호 마커·날짜 뱃지)가 통째로 사라지고 타입별 색 코딩도 무력화된다. `printBackground:false`로 PDF를 만들어 A/B로 확인한 값: 규칙 있을 때 유채색 fill 89개, 없을 때 54개.
+
+**페이지를 넘길 수 있는 크기의 요소에 `break-inside: avoid`를 걸지 말 것.** 한 페이지보다 큰 블록에서는 브라우저가 avoid를 무시하면서 앞 페이지에 큰 여백만 남긴다. 하루 일정 전체에 걸어놨다가 겪은 문제다. 제목 행·지도·일정 한 줄처럼 확실히 한 페이지에 들어가는 단위에만 쓴다.
+
+**인쇄 시점은 타이머가 아니라 게이트다.** 데이터 → 경로 조회 → 이미지 디코딩이 비동기 사슬이라 `setTimeout` 추측값으로는 지도가 도착하기 전에 인쇄 다이얼로그가 뜬다. `lib/printReady.ts`의 `waitForAssets()`가 폰트와 이미지를 기다리고 8초 하드 타임아웃을 둔다. 인쇄 센티널(`printedRef`)은 **실제 인쇄 시점에** 세워야 한다 — 진입 시점에 세우면 StrictMode의 2회 실행에서 1차가 취소된 뒤 2차가 "이미 인쇄함"으로 판단해 아무도 인쇄하지 않는다.
+
+**인쇄 페이지의 store 구독은 셀렉터로 좁힐 것.** `useTripStore()`를 통째로 구독하면 store의 어떤 변경에도 `trip` identity가 바뀌어 경로 조회가 무한 재실행되며 **조용히 과금된다.** 마찬가지로 지도를 끌 때는 `display:none`이 아니라 컴포넌트를 아예 렌더하지 않아야 요청이 안 나간다.
+
+**Static Maps 마커 라벨은 한 글자만 된다.** `label:10`은 빈 마커로 렌더된다(실측). `lib/staticMap.ts`의 `stopLabel`이 10번째부터 `A`로 넘기며, **지도·범례·목록이 전부 이 함수를 공유해야** 한다 — 규칙이 두 벌이면 같은 종이에 "10번"과 "A"가 같이 나온다.
+
+**폴리라인을 URL에 넣을 때는 `encodeURIComponent`를 정확히 한 번.** 인코딩된 폴리라인에는 `?` `@` `\` `|`가 실제로 들어있고(`|`는 Static Maps 자체 구분자) 안 하면 요청이 깨진다. 두 번 하면 에러 없이 경로만 조용히 사라진다.
 
 **Supabase JWT는 레거시 HS256을 유지해야 한다.** 공유 프로젝트라 ES256으로 바꾸면 Data API 검증이 깨져 다른 앱까지 같이 죽는다.
 
