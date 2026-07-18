@@ -24,10 +24,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'GOOGLE_ROUTES_API_KEY가 설정되지 않았습니다.' }, { status: 500 })
   }
 
-  const { origin, destination, mode } = await req.json() as {
+  const { origin, destination, mode, trafficAware = true } = await req.json() as {
     origin: LatLng
     destination: LatLng
     mode: TransportType
+    trafficAware?: boolean
   }
 
   const travelMode = TRAVEL_MODE[mode]
@@ -47,7 +48,10 @@ export async function POST(req: NextRequest) {
         origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
         destination: { location: { latLng: { latitude: destination.lat, longitude: destination.lng } } },
         travelMode,
-        ...(travelMode === 'DRIVE' ? { routingPreference: 'TRAFFIC_AWARE' } : {}),
+        // TRAFFIC_UNAWARE는 더 저렴하고 결과가 안정적이라 캐시하기 좋다 — 인쇄용 경로가 쓴다.
+        ...(travelMode === 'DRIVE'
+          ? { routingPreference: trafficAware ? 'TRAFFIC_AWARE' : 'TRAFFIC_UNAWARE' }
+          : {}),
       }),
     })
 

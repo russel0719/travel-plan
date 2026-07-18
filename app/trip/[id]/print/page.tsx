@@ -1,7 +1,7 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, use, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTripStore } from '@/store/tripStore'
 import {
   ScheduleItem, DaySchedule,
@@ -11,7 +11,11 @@ import {
 } from '@/lib/types'
 import { computeActuals } from '@/lib/budget'
 import { formatDate, formatTimeRange, getDayLabel } from '@/lib/utils'
-import { Printer, ArrowLeft, MapPin, Clock, Ticket, Phone, Wallet } from 'lucide-react'
+import { useDayRoutes } from '@/hooks/useDayRoutes'
+import { parsePrintOptions } from '@/lib/printOptions'
+import { waitForAssets, sanitizeFilename } from '@/lib/printReady'
+import DayRouteMap from '@/components/print/DayRouteMap'
+import { Printer, ArrowLeft, MapPin, Clock, Ticket, Phone, Wallet, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface PageProps {
@@ -56,7 +60,7 @@ function RouteDiagram({ day }: { day: DaySchedule }) {
 }
 
 /* ── 일정 항목 행 ── */
-function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCurrency?: string }) {
+function ScheduleItemRow({ item, localCurrency, showNotes = true }: { item: ScheduleItem; localCurrency?: string; showNotes?: boolean }) {
   const color = ITEM_TYPE_COLORS[item.type]
   // 마커 번호 표시용 — 부모에서 index 넘겨받으면 더 정확하지만 여기선 위치 여부만 활용
   const timeRange = formatTimeRange(item.startTime, item.endTime)
@@ -104,7 +108,7 @@ function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCur
               </span>
             )}
           </div>
-          {(item.location?.name || item.location?.address || item.notes) && (
+          {(item.location?.name || item.location?.address || (showNotes && item.notes)) && (
             <div className="text-[0.65rem] text-gray-600 space-y-px mt-px">
               {item.location?.name && (
                 <p className="flex items-center gap-0.5">
@@ -121,7 +125,7 @@ function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCur
                 <p className="pl-2.5 text-gray-500">{item.location.address}</p>
               )}
               {/* line-clamp를 걸면 화면과 달리 PDF에서는 영구히 잘린다. 줄바꿈도 그대로 살린다 */}
-              {item.notes && <p className="whitespace-pre-wrap break-words">{item.notes}</p>}
+              {showNotes && item.notes && <p className="whitespace-pre-wrap break-words">{item.notes}</p>}
             </div>
           )}
         </div>
@@ -131,26 +135,48 @@ function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCur
 }
 
 /* ── 메인 ── */
-export default function PrintPage({ params }: PageProps) {
-  const { id } = use(params)
+function PrintPageInner({ id }: { id: string }) {
   const router = useRouter()
-  const { hydrated, hydrate, getTrip } = useTripStore()
-  const [printed, setPrinted] = useState(false)
+  const searchParams = useSearchParams()
+  const hydrated = useTripStore((s) => s.hydrated)
+  const hydrate = useTripStore((s) => s.hydrate)
+  // 셀렉터로 좁힌다 — useTripStore()를 통째로 구독하면 store의 어떤 변경에도 trip identity가
+  // 바뀌어, 경로 조회 effect가 무한히 재실행되며 조용히 과금된다.
+  const trip = useTripStore((s) => s.trips.find((t) => t.id === id))
+
+  const opts = useMemo(() => parsePrintOptions(searchParams), [searchParams])
+  const { legs, loading: routesLoading } = useDayRoutes(trip?.days ?? [], opts.map && !!trip)
+
+  const printedRef = useRef(false) // StrictMode의 effect 2회 실행에 state는 늦다
 
   useEffect(() => { if (!hydrated) hydrate() }, [hydrated, hydrate])
-
-  const trip = getTrip(id)
-
   useEffect(() => { if (hydrated && !trip) router.push('/') }, [hydrated, trip, router])
 
+  // 타이머가 아니라 게이트 — 데이터·경로·이미지가 모두 확정된 뒤에만 인쇄한다
   useEffect(() => {
-    if (trip && !printed) {
-      const t = setTimeout(() => { window.print(); setPrinted(true) }, 600)
-      return () => clearTimeout(t)
-    }
-  }, [trip, printed])
+    if (!trip || routesLoading || printedRef.current || !opts.auto) return
+    const nights = trip.days.length - 1
+    let cancelled = false
+    waitForAssets().then(() => {
+      // 센티널은 여기서 세운다. 진입 시점에 미리 세우면 StrictMode가 effect를 두 번 돌릴 때
+      // 1차 실행이 cleanup으로 취소된 뒤 2차 실행이 "이미 인쇄함"으로 판단해 조기 반환하고,
+      // 결국 아무도 인쇄하지 않는다(실제로 겪었다).
+      if (cancelled || printedRef.current) return
+      printedRef.current = true
+      // Chrome은 이 값을 PDF 기본 파일명으로 쓴다
+      document.title = `${sanitizeFilename(trip.title)}_${trip.startDate}_${nights}박${trip.days.length}일`
+      window.print()
+    })
+    return () => { cancelled = true }
+  }, [trip, routesLoading, opts.auto])
 
-  if (!hydrated || !trip) return null
+  if (!hydrated || !trip) {
+    return (
+      <div className="print-hide flex min-h-screen items-center justify-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />일정을 불러오는 중…
+      </div>
+    )
+  }
 
   const nights = trip.days.length - 1
   const actuals = computeActuals(trip)
@@ -195,7 +221,7 @@ export default function PrintPage({ params }: PageProps) {
             {/* ── 항공 + 숙박 컴팩트 ── */}
             {/* isInternational로 가리지 않는다 — 국내여행에도 항공(제주)·숙박은 있고, 예산 합계에는
                 포함되면서 표시만 안 되면 "보이지 않는 비용"이 생긴다. 이 플래그는 뱃지만 제어해야 한다. */}
-            {((trip.flights ?? []).length > 0 || (trip.accommodations ?? []).length > 0) && (
+            {opts.travel && ((trip.flights ?? []).length > 0 || (trip.accommodations ?? []).length > 0) && (
               <div className="mt-4 space-y-1.5">
                 {(trip.flights ?? []).map((f) => (
                   <div key={f.id} className="flex items-center gap-2 text-[0.7rem] bg-indigo-50 rounded px-3 py-1.5">
@@ -273,7 +299,12 @@ export default function PrintPage({ params }: PageProps) {
           {trip.days.map((day, idx) => (
             // 하루 전체에는 avoid를 걸지 않는다 — 페이지보다 길면 무시되면서 앞 페이지에
             // 큰 여백만 남긴다. 대신 제목 행과 일정 한 줄 단위로 avoid를 건다.
-            <section key={day.date} className="space-y-2">
+            <section
+              key={day.date}
+              // 첫 날은 헤더 바로 뒤에 이어지게 둔다. :first-of-type을 쓰지 않는 이유는 예산 섹션도
+              // <section>이라 마크업이 바뀌면 조용히 깨지기 때문이다.
+              className={`space-y-2 ${opts.perDayPage && idx > 0 ? 'print-break-before' : ''}`}
+            >
               {/* 날짜 제목 — 제목만 페이지 하단에 홀로 남지 않게 */}
               <div className="print-avoid-break print-break-after-avoid flex items-center gap-2.5 border-b pb-1.5">
                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-900 text-white text-xs font-bold shrink-0">
@@ -288,12 +319,27 @@ export default function PrintPage({ params }: PageProps) {
                 <p className="text-xs text-gray-600 italic pl-8">일정 없음</p>
               ) : (
                 <>
-                  {/* 동선 다이어그램 */}
-                  <RouteDiagram day={day} />
+                  {/* 지도가 꺼져 있으면 컴포넌트를 아예 렌더하지 않는다 — display:none으로 숨기면
+                      요청은 그대로 나가서 과금된다 */}
+                  {opts.map ? (
+                    <DayRouteMap
+                      day={day}
+                      legs={legs}
+                      tall={opts.perDayPage}
+                      fallback={<RouteDiagram day={day} />}
+                    />
+                  ) : (
+                    <RouteDiagram day={day} />
+                  )}
                   {/* 일정 목록 */}
                   <div className="space-y-0.5 pl-1 border-l-2 border-gray-100 ml-1">
                     {day.items.map((item) => (
-                      <ScheduleItemRow key={item.id} item={item} localCurrency={trip.budget?.localCurrency} />
+                      <ScheduleItemRow
+                        key={item.id}
+                        item={item}
+                        localCurrency={trip.budget?.localCurrency}
+                        showNotes={opts.notes}
+                      />
                     ))}
                   </div>
                 </>
@@ -302,7 +348,7 @@ export default function PrintPage({ params }: PageProps) {
           ))}
 
           {/* ── 예산 요약 ── */}
-          {hasBudget && (
+          {opts.budget && hasBudget && (
             <section className="print-avoid-break space-y-3">
               <h2 className="text-base font-bold flex items-center gap-2 border-b pb-1.5">
                 <Wallet className="h-4 w-4" />예산 요약
@@ -372,5 +418,15 @@ export default function PrintPage({ params }: PageProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+// useSearchParams를 쓰는 컴포넌트는 Suspense 경계가 필요하다 (Next.js app router)
+export default function PrintPage({ params }: PageProps) {
+  const { id } = use(params)
+  return (
+    <Suspense fallback={null}>
+      <PrintPageInner id={id} />
+    </Suspense>
   )
 }

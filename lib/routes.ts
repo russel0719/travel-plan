@@ -17,13 +17,16 @@ interface LatLng {
 export async function fetchRoute(
   origin: LatLng,
   destination: LatLng,
-  mode: TransportType
+  mode: TransportType,
+  // 인쇄물에는 실시간 교통이 무의미하고(종이는 이미 과거다) 더 저렴하므로 false를 넘긴다.
+  // 앱 안의 지도는 기존대로 교통 반영을 유지한다.
+  trafficAware = true
 ): Promise<RouteInfo | null> {
   try {
     const res = await fetch('/api/compute-route', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin, destination, mode }),
+      body: JSON.stringify({ origin, destination, mode, trafficAware }),
     })
     if (!res.ok) return null
     const data = await res.json()
