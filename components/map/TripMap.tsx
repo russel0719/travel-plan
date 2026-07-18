@@ -13,7 +13,10 @@ import {
 import { useEffect } from 'react'
 
 // 도보 구간(대부분)의 색. '이동' 항목만 수단별 색을 쓴다.
-const ROUTE_COLOR = '#1d4ed8'
+//
+// 파란 계열을 쓰면 바탕의 물·철도·고속도로 표지와 섞여 묻힌다. 로즈는 Google 기본 지도가
+// 면이나 선에 쓰지 않는 색이고, 마커 팔레트(파랑·앰버·보라·회색)와도 겹치지 않는다.
+const ROUTE_COLOR = '#e11d48'
 // 선 밑에 까는 테두리 — 지도 바탕에서 선을 떼어내 가시성을 만든다
 const CASING_COLOR = '#ffffff'
 const LINE_WEIGHT = 5
