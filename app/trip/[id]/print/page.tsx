@@ -4,39 +4,18 @@ import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTripStore } from '@/store/tripStore'
 import {
-  Trip, ScheduleItem, DaySchedule,
+  ScheduleItem, DaySchedule,
   ITEM_TYPE_LABELS, ITEM_TYPE_COLORS,
-  BUDGET_CATEGORY_LABELS, ITEM_TYPE_TO_BUDGET, BudgetCategory,
+  BUDGET_CATEGORY_LABELS, BudgetCategory,
+  MEAL_TYPE_LABELS, CHECK_TYPE_LABELS, TRANSPORT_LABELS,
 } from '@/lib/types'
+import { computeActuals } from '@/lib/budget'
 import { formatDate, formatTimeRange, getDayLabel } from '@/lib/utils'
 import { Printer, ArrowLeft, MapPin, Clock, Ticket, Phone, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface PageProps {
   params: Promise<{ id: string }>
-}
-
-/* ── 유틸 ── */
-function toKRW(price: number, currency: string, localCurrency: string, rate: number) {
-  if (currency === 'KRW' || currency === '₩') return price
-  return Math.round(price * rate)
-}
-
-function computeActuals(trip: Trip) {
-  const lc = trip.budget?.localCurrency ?? 'JPY'
-  const rate = trip.budget?.exchangeRate ?? 9.5
-  const map: Partial<Record<BudgetCategory, number>> = {}
-  for (const day of trip.days)
-    for (const item of day.items)
-      if (item.price) {
-        const cat = ITEM_TYPE_TO_BUDGET[item.type]
-        map[cat] = (map[cat] ?? 0) + toKRW(item.price, item.currency ?? lc, lc, rate)
-      }
-  const ft = (trip.flights ?? []).reduce((s, f) => s + (f.priceKRW ?? 0), 0)
-  const ht = (trip.accommodations ?? []).reduce((s, a) => s + (a.priceKRW ?? 0), 0)
-  if (ft) map['flight'] = (map['flight'] ?? 0) + ft
-  if (ht) map['hotel'] = (map['hotel'] ?? 0) + ht
-  return map
 }
 
 /* ── 동선 다이어그램 (줄바꿈 지원) ── */
@@ -107,20 +86,42 @@ function ScheduleItemRow({ item, localCurrency }: { item: ScheduleItem; localCur
               {ITEM_TYPE_LABELS[item.type]}
             </span>
             <span className="text-[0.7rem] font-medium">{item.title}</span>
+            {item.mealType && (
+              <span className="text-[0.6rem] text-gray-600 shrink-0">{MEAL_TYPE_LABELS[item.mealType]}</span>
+            )}
+            {item.checkType && (
+              <span className="text-[0.6rem] text-gray-600 shrink-0">{CHECK_TYPE_LABELS[item.checkType]}</span>
+            )}
+            {/* 인쇄된 일정표에서 가장 실질적인 정보 중 하나 */}
+            {item.reservationNeeded && (
+              <span className="text-[0.6rem] px-1 py-px rounded border border-amber-600 text-amber-700 shrink-0">
+                예약 필요
+              </span>
+            )}
             {item.price != null && (
               <span className="ml-auto text-[0.65rem] text-gray-600 shrink-0 whitespace-nowrap">
                 {item.price.toLocaleString()} {item.currency ?? localCurrency ?? ''}
               </span>
             )}
           </div>
-          {(item.location?.name || item.notes) && (
+          {(item.location?.name || item.location?.address || item.notes) && (
             <div className="text-[0.65rem] text-gray-600 space-y-px mt-px">
               {item.location?.name && (
                 <p className="flex items-center gap-0.5">
-                  <MapPin className="h-2 w-2 shrink-0" />{item.location.name}
+                  <MapPin className="h-2 w-2 shrink-0" />
+                  {/* 이동 항목은 도착지만 보여주면 어디서 출발하는지 알 수 없다 */}
+                  {item.fromLocation?.name ? `${item.fromLocation.name} → ${item.location.name}` : item.location.name}
+                  {item.transportMode && (
+                    <span className="text-gray-500">({TRANSPORT_LABELS[item.transportMode]})</span>
+                  )}
                 </p>
               )}
-              {item.notes && <p className="line-clamp-1">{item.notes}</p>}
+              {/* 종이에서는 지도 링크를 누를 수 없으니 주소가 곧 정보다 */}
+              {item.location?.address && (
+                <p className="pl-2.5 text-gray-500">{item.location.address}</p>
+              )}
+              {/* line-clamp를 걸면 화면과 달리 PDF에서는 영구히 잘린다. 줄바꿈도 그대로 살린다 */}
+              {item.notes && <p className="whitespace-pre-wrap break-words">{item.notes}</p>}
             </div>
           )}
         </div>
@@ -192,7 +193,9 @@ export default function PrintPage({ params }: PageProps) {
             </div>
 
             {/* ── 항공 + 숙박 컴팩트 ── */}
-            {trip.isInternational && ((trip.flights ?? []).length > 0 || (trip.accommodations ?? []).length > 0) && (
+            {/* isInternational로 가리지 않는다 — 국내여행에도 항공(제주)·숙박은 있고, 예산 합계에는
+                포함되면서 표시만 안 되면 "보이지 않는 비용"이 생긴다. 이 플래그는 뱃지만 제어해야 한다. */}
+            {((trip.flights ?? []).length > 0 || (trip.accommodations ?? []).length > 0) && (
               <div className="mt-4 space-y-1.5">
                 {(trip.flights ?? []).map((f) => (
                   <div key={f.id} className="flex items-center gap-2 text-[0.7rem] bg-indigo-50 rounded px-3 py-1.5">
@@ -205,8 +208,13 @@ export default function PrintPage({ params }: PageProps) {
                       {f.departureAirport} <strong>{f.departureTime}</strong>
                       {' → '}
                       {f.arrivalAirport} <strong>{f.arrivalTime}</strong>
+                      {/* 야간 비행은 도착 날짜가 없으면 언제 내리는지 모호하다 */}
+                      {f.arrivalDate && f.arrivalDate !== f.departureDate && (
+                        <span className="text-gray-500"> ({f.arrivalDate.slice(5)} 도착)</span>
+                      )}
                     </span>
                     <span className="text-gray-600">{f.departureDate}</span>
+                    {f.seat && <span className="text-gray-600">{f.seat}</span>}
                     {f.bookingRef && (
                       <>
                         <span className="text-gray-500">|</span>

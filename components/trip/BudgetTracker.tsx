@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Trip, Budget, BudgetItem, BudgetCategory, BUDGET_CATEGORY_LABELS, BUDGET_CATEGORY_COLORS, ITEM_TYPE_TO_BUDGET } from '@/lib/types'
+import { Trip, Budget, BudgetItem, BudgetCategory, BUDGET_CATEGORY_LABELS, BUDGET_CATEGORY_COLORS } from '@/lib/types'
+import { computeActuals } from '@/lib/budget'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,12 +19,6 @@ const DEFAULT_BUDGET: Budget = {
   localCurrency: 'JPY',
   exchangeRate: 9.5,
   items: [],
-}
-
-function toKRW(price: number, currency: string, localCurrency: string, exchangeRate: number) {
-  if (currency === 'KRW' || currency === '₩') return price
-  if (currency === localCurrency || currency === '¥') return Math.round(price * exchangeRate)
-  return price
 }
 
 export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerProps) {
@@ -76,21 +71,9 @@ export default function BudgetTracker({ trip, onUpdateBudget }: BudgetTrackerPro
     setEditingId(null)
   }
 
-  // 실제 지출 계산 (일정 아이템 + 항공 + 숙박)
-  const actualByCategory: Partial<Record<BudgetCategory, number>> = {}
-
-  for (const day of trip.days) {
-    for (const item of day.items) {
-      if (!item.price) continue
-      const cat = ITEM_TYPE_TO_BUDGET[item.type]
-      const krw = toKRW(item.price, item.currency ?? budget.localCurrency, budget.localCurrency, budget.exchangeRate)
-      actualByCategory[cat] = (actualByCategory[cat] ?? 0) + krw
-    }
-  }
-  const flightTotal = (trip.flights ?? []).reduce((s, f) => s + (f.priceKRW ?? 0), 0)
-  const hotelTotal = (trip.accommodations ?? []).reduce((s, a) => s + (a.priceKRW ?? 0), 0)
-  if (flightTotal) actualByCategory['flight'] = (actualByCategory['flight'] ?? 0) + flightTotal
-  if (hotelTotal) actualByCategory['hotel'] = (actualByCategory['hotel'] ?? 0) + hotelTotal
+  // 실제 지출 계산 (일정 아이템 + 항공 + 숙박) — 인쇄 페이지와 같은 함수를 쓴다.
+  // 예전엔 양쪽이 각자 계산했고 환산 규칙이 달라 합계가 어긋났다.
+  const actualByCategory = computeActuals(trip)
 
   const totalPlanned = budget.items.reduce((s, i) => s + i.plannedKRW, 0)
   const totalActual = Object.values(actualByCategory).reduce((s, v) => s + (v ?? 0), 0)
