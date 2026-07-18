@@ -62,8 +62,9 @@ function markerParams(stops: MapStop[]): string[][] {
   })
 }
 
-// 장소 사이 이동은 모두 도보라 구간마다 색을 나눌 이유가 없다
-const ROUTE_COLOR = '#3b82f6'
+// 앱 지도(TripMap)와 같은 색을 쓴다 — 같은 동선이 화면과 인쇄물에서 다른 색이면 어색하다.
+// 파란 계열은 바탕의 물·철도와 섞여 묻힌다.
+const ROUTE_COLOR = '#e11d48'
 
 function pathParam(points: LatLng[]): string[] {
   const color = toMapColor(ROUTE_COLOR)

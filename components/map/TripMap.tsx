@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { DaySchedule, ITEM_TYPE_COLORS, TRANSPORT_COLORS } from '@/lib/types'
+import { DaySchedule, ITEM_TYPE_COLORS } from '@/lib/types'
 import { fetchRoute, daySegments } from '@/lib/routes'
 import MapMock from './MapMock'
 import {
@@ -12,7 +12,7 @@ import {
 } from '@vis.gl/react-google-maps'
 import { useEffect } from 'react'
 
-// 도보 구간(대부분)의 색. '이동' 항목만 수단별 색을 쓴다.
+// 동선 색 — 이동수단과 무관하게 전부 이 색으로 그린다.
 //
 // 파란 계열을 쓰면 바탕의 물·철도·고속도로 표지와 섞여 묻힌다. 로즈는 Google 기본 지도가
 // 면이나 선에 쓰지 않는 색이고, 마커 팔레트(파랑·앰버·보라·회색)와도 겹치지 않는다.
@@ -47,9 +47,10 @@ function RouteLayer({ day }: RouteLayerProps) {
     const draw = async () => {
       for (const seg of segments) {
         const { from, to, mode } = seg
-        // 도보는 어디서 나오든 같은 색이어야 한다 — 장소 사이 이동이든 '도보'로 지정한 이동
-        // 항목이든 사용자에겐 똑같은 걷기다. 나머지 수단만 수단별 색을 쓴다.
-        const color = mode === 'walk' ? ROUTE_COLOR : TRANSPORT_COLORS[mode]
+        // 동선은 수단과 무관하게 한 색으로 그린다. 수단별로 색을 나눴더니 파란 대중교통 구간이
+        // 바탕에 묻혔고, 한 여행 안에서 선 색이 여러 개면 "무슨 색이 무슨 뜻인지" 지도만 보고는
+        // 알 수 없었다. 수단 구분은 실선/점선과 일정 목록이 맡는다.
+        const color = ROUTE_COLOR
 
         // 경로를 못 가져오면(항공, 서버 키 미설정 등) 직선으로 폴백한다.
         let path: google.maps.LatLngLiteral[] = [
