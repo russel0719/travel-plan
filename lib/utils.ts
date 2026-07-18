@@ -6,14 +6,26 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// 저장된 장소를 Google 지도에서 여는 URL. 장소 검색으로 선택했으면 좌표가 있으므로 좌표로 열어
-// 정확한 지점을 가리키고, 사용자가 직접 타이핑해 좌표가 없으면(선택 안 하면 0으로 채워진다)
-// 이름으로 검색한다. 이름조차 없으면 null — 호출부는 링크를 렌더링하지 않는다.
+// 저장된 장소를 Google 지도에서 여는 URL.
+//
+// 좌표로 열면 안 된다 — 지도가 "35°39'31.0"N 139°44'43.4"E, 리뷰 없음"이라는 빈 좌표 핀만
+// 보여줘서 영업시간·전화·사진 같은 장소 정보를 전혀 볼 수 없다(실측 확인).
+// place_id를 함께 넘기면 Google이 그걸 우선해 정확한 장소 페이지를 연다(query 텍스트가 다른
+// 장소를 가리켜도 place_id가 이긴다 — 이것도 실측으로 확인).
+// place_id가 없는 예전 데이터는 이름으로 검색한다 — 동명이인 위험은 있지만 좌표보다 훨씬 낫고,
+// 실제로도 장소 카드가 뜬다. 이름조차 없으면(지도에서 빈 공간만 찍은 경우) 그때만 좌표로 떨어진다.
 export function googleMapsUrl(location: Location): string | null {
-  const hasCoords = location.lat !== 0 || location.lng !== 0
-  const query = hasCoords ? `${location.lat},${location.lng}` : location.name.trim()
-  if (!query) return null
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+  const name = location.name.trim()
+  const base = 'https://www.google.com/maps/search/?api=1&query='
+
+  if (name) {
+    const url = `${base}${encodeURIComponent(name)}`
+    return location.placeId ? `${url}&query_place_id=${encodeURIComponent(location.placeId)}` : url
+  }
+  if (location.lat !== 0 || location.lng !== 0) {
+    return `${base}${encodeURIComponent(`${location.lat},${location.lng}`)}`
+  }
+  return null
 }
 
 export function generateId(): string {

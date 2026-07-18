@@ -26,6 +26,11 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
   const color = ITEM_TYPE_COLORS[item.type]
   const mapsUrl = item.location ? googleMapsUrl(item.location) : null
   const timeRange = formatTimeRange(item.startTime, item.endTime)
+  // 지도에서 빈 공간을 찍고 이름을 지우면 좌표만 남는다. 이름이 없다고 위치 줄을 통째로 숨기면
+  // 저장된 좌표가 보이지도 눌리지도 않으므로, 그때는 좌표를 라벨로 쓴다.
+  const loc = item.location
+  const locationLabel =
+    loc?.name?.trim() || (loc && (loc.lat !== 0 || loc.lng !== 0) ? `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}` : '')
 
   return (
     <div ref={setNodeRef} style={style} className="group">
@@ -77,16 +82,16 @@ export default function ScheduleItemCard({ item, onEdit, onDelete }: ScheduleIte
               <MapPin className="h-3 w-3 shrink-0" />
               <span className="truncate">{item.fromLocation.name} → {item.location.name}</span>
             </p>
-          ) : item.location?.name && (
+          ) : locationLabel && (
             <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5 min-w-0">
               <MapPin className="h-3 w-3 shrink-0" />
-              <span className="truncate">{item.location.name}</span>
+              <span className="truncate">{locationLabel}</span>
               {mapsUrl && (
                 <a
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={`${item.location.name} — Google 지도에서 열기`}
+                  aria-label={`${locationLabel} — Google 지도에서 열기`}
                   className="ml-1 shrink-0 text-primary hover:opacity-70"
                 >
                   <ExternalLink className="h-3 w-3" />

@@ -1,0 +1,3 @@
+-- 스텁: 이 버전은 whisky-note 프로젝트가 적용했다(tasting_color_photo_storage).
+-- 마이그레이션 히스토리를 공유하므로 버전 문자열만 맞춰 db push가 막히지 않게 한다.
+-- (migration repair --status reverted는 절대 쓰지 않는다 — 상대 프로젝트 이력이 지워진다.)

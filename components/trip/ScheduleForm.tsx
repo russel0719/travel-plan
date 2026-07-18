@@ -97,6 +97,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
   const [locationName, setLocationName] = useState(initial?.location?.name ?? '')
   const [locationLat, setLocationLat] = useState(initial?.location?.lat ?? 0)
   const [locationLng, setLocationLng] = useState(initial?.location?.lng ?? 0)
+  const [locationPlaceId, setLocationPlaceId] = useState(initial?.location?.placeId)
 
   const [fromLocationName, setFromLocationName] = useState(initial?.fromLocation?.name ?? '')
   const [fromLocationLat, setFromLocationLat] = useState(initial?.fromLocation?.lat ?? 0)
@@ -112,6 +113,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
     setLocationName(place.name)
     setLocationLat(place.lat)
     setLocationLng(place.lng)
+    setLocationPlaceId(place.placeId)
     setCoordsPinned(false)
     setForm((prev) => ({ ...prev, placePhotoUrl: place.photoUrl }))
   }
@@ -121,6 +123,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
   const pickCoords = (lat: number, lng: number) => {
     setLocationLat(lat)
     setLocationLng(lng)
+    setLocationPlaceId(undefined) // 빈 공간에는 장소가 없다
     setCoordsPinned(true)
     setLocationName((prev) => (prev.trim() ? prev : `${lat.toFixed(5)}, ${lng.toFixed(5)}`))
   }
@@ -130,6 +133,9 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
     if (!coordsPinned) {
       setLocationLat(0)
       setLocationLng(0)
+      // placeId도 이름과 한 쌍이다. 남겨두면 이름을 다른 장소로 바꿨을 때 링크가 엉뚱한 곳을 연다
+      // (query_place_id가 query 텍스트를 이기기 때문에 더 위험하다).
+      setLocationPlaceId(undefined)
     }
   }
 
@@ -156,6 +162,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
     setLocationName('')
     setLocationLat(0)
     setLocationLng(0)
+    setLocationPlaceId(undefined)
     setFromLocationName('')
     setFromLocationLat(0)
     setFromLocationLng(0)
@@ -178,6 +185,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
     setLocationName(acc.name)
     setLocationLat(acc.lat ?? 0)
     setLocationLng(acc.lng ?? 0)
+    setLocationPlaceId(undefined)
     setCoordsPinned(acc.lat != null)
     setForm((prev) => {
       const notesParts = [
@@ -200,7 +208,7 @@ export default function ScheduleForm({ open, initial, accommodations, dayDate, o
       // 이름이 비어도 좌표가 있으면 저장한다 — 지도에서 빈 공간을 찍어 좌표만 잡은 뒤 이름을
       // 지운 경우, 이름만 보고 판단하면 찍어둔 좌표까지 통째로 버려진다.
       location: locationName.trim() || locationLat !== 0 || locationLng !== 0
-        ? { name: locationName.trim(), lat: locationLat, lng: locationLng }
+        ? { name: locationName.trim(), lat: locationLat, lng: locationLng, placeId: locationPlaceId }
         : undefined,
       fromLocation: hasField(form.type, 'fromLocation') && fromLocationName.trim()
         ? { name: fromLocationName.trim(), lat: fromLocationLat, lng: fromLocationLng }

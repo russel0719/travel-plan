@@ -45,6 +45,7 @@ export interface ScheduleItemRow {
   title: string
   start_time: string | null
   end_time: string | null
+  location_place_id: string | null
   location_name: string | null
   location_lat: number | string | null
   location_lng: number | string | null
@@ -166,10 +167,17 @@ function toLocation(
   name: string | null,
   lat: number | string | null,
   lng: number | string | null,
-  address: string | null
+  address: string | null,
+  placeId?: string | null
 ): Location | undefined {
   if (name == null) return undefined
-  return { name, lat: toNumber(lat), lng: toNumber(lng), address: address ?? undefined }
+  return {
+    name,
+    lat: toNumber(lat),
+    lng: toNumber(lng),
+    address: address ?? undefined,
+    placeId: placeId ?? undefined,
+  }
 }
 
 function toScheduleItem(row: ScheduleItemRow): ScheduleItem {
@@ -179,7 +187,7 @@ function toScheduleItem(row: ScheduleItemRow): ScheduleItem {
     title: row.title,
     startTime: row.start_time ?? undefined,
     endTime: row.end_time ?? undefined,
-    location: toLocation(row.location_name, row.location_lat, row.location_lng, row.location_address),
+    location: toLocation(row.location_name, row.location_lat, row.location_lng, row.location_address, row.location_place_id),
     transportToNext: (row.transport_to_next as TransportType | null) ?? undefined,
     notes: row.notes ?? undefined,
     price: toOptionalNumber(row.price),

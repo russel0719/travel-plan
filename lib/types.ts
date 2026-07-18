@@ -9,6 +9,7 @@ export interface Location {
   lat: number
   lng: number
   address?: string
+  placeId?: string                    // Google Place ID — 지도 링크를 장소 페이지로 열기 위해 저장한다
 }
 
 export interface ScheduleItem {

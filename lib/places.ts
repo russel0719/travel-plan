@@ -2,6 +2,7 @@ export interface SelectedPlace {
   name: string
   lat: number
   lng: number
+  placeId?: string
   photoUrl?: string
   formattedAddress?: string
 }
@@ -21,6 +22,8 @@ export async function fetchSelectedPlace(
     name: place.displayName ?? '',
     lat: place.location?.lat() ?? 0,
     lng: place.location?.lng() ?? 0,
+    // id는 Place 생성 시점에 이미 정해져 있어 fetchFields로 따로 요청하지 않아도 된다(= 추가 비용 없음).
+    placeId: place.id || undefined,
     photoUrl: place.photos?.[0]?.getURI({ maxWidth: 400 }),
     formattedAddress: extraFields.includes('formattedAddress') ? place.formattedAddress ?? undefined : undefined,
   }
