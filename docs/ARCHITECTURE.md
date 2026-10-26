@@ -52,6 +52,7 @@ flowchart LR
 | `proxy.ts` | Supabase 세션 쿠키 갱신 미들웨어 (Next.js 16은 `middleware.ts`가 아니라 `proxy.ts`) |
 | `app/api/compute-route/route.ts` | Routes API 프록시 — 서버 전용 키를 숨기려고 존재 |
 | `app/api/generate-report/route.ts` | NVIDIA(Llama 3.3 70B) 후기 생성 프록시 |
+| `app/api/export/trips` · `…/trips/[id]` · `lib/exportApi.ts` | **읽기 전용 내보내기 API** — 다른 앱(taleframe)이 개인 토큰으로 계획을 읽는다. 앱 화면은 쓰지 않는다 |
 | `components/trip/*` | 일정·항공·숙박·예산 UI |
 | `components/map/TripMap.tsx` | 지도 마커 + 경로 폴리라인 |
 | `components/ui/*` | shadcn/ui 기반 공통 컴포넌트 (Base UI 기반) |
@@ -127,6 +128,7 @@ transport:  ['fromLocation', 'transportMode'],
 | 지도 표시 · 장소 검색 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (브라우저) | `MapsProvider` → `TripMap`, `usePlaceSuggestions`, `PlaceMapPicker` |
 | 도로 경로 계산 | `GOOGLE_ROUTES_API_KEY` (**서버 전용**) | `app/api/compute-route` |
 | AI 후기 생성 | `NVIDIA_API_KEY` (서버 전용) | `app/api/generate-report` |
+| 계획 내보내기 (읽기 전용) | `EXPORT_API_TOKEN` · `EXPORT_USER_ID` · `SUPABASE_SERVICE_ROLE_KEY` (전부 서버 전용) | `app/api/export/*` |
 
 **키 두 개는 의도적으로 분리되어 있다.** 브라우저 키는 노출될 수밖에 없어 Places/Maps만 열어두고, Routes는 서버 전용 키로만 호출한다. Routes 키로 Places를 부르면 `API_KEY_SERVICE_BLOCKED`가 나는 게 정상이다.
 
@@ -198,6 +200,11 @@ transport:  ['fromLocation', 'transportMode'],
 **Static Maps 마커 라벨은 한 글자만 된다.** `label:10`은 빈 마커로 렌더된다(실측). `lib/staticMap.ts`의 `stopLabel`이 10번째부터 `A`로 넘기며, **지도·범례·목록이 전부 이 함수를 공유해야** 한다 — 규칙이 두 벌이면 같은 종이에 "10번"과 "A"가 같이 나온다.
 
 **폴리라인을 URL에 넣을 때는 `encodeURIComponent`를 정확히 한 번.** 인코딩된 폴리라인에는 `?` `@` `\` `|`가 실제로 들어있고(`|`는 Static Maps 자체 구분자) 안 하면 요청이 깨진다. 두 번 하면 에러 없이 경로만 조용히 사라진다.
+
+**내보내기 API는 service_role 로 읽는다 — RLS 를 우회하므로 `.eq('user_id', EXPORT_USER_ID)` 를 빼면 남의 여행까지 나간다.**
+응답 필드는 `lib/exportApi.ts` 의 `*_COLUMNS` 가 정한다(예약번호·전화·좌석·숙소 주소 제외). 새 테이블을 읽으려면 service_role 에 SELECT 를
+주는 마이그레이션이 먼저다(`…_grant_service_role_read*.sql`) — 없으면 42501 이 403 으로 나온다. 응답 모양은 `EXPORT_VERSION` 으로 약속한 것이라
+일정 컬럼 이름을 바꿔도 이 모양은 지킨다 (taleframe 의 `scripts/lib/planMatch.ts` 가 읽는다).
 
 **Supabase JWT는 레거시 HS256을 유지해야 한다.** 공유 프로젝트라 ES256으로 바꾸면 Data API 검증이 깨져 다른 앱까지 같이 죽는다.
 

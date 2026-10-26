@@ -1,0 +1,4 @@
+-- 스텁: 이 버전은 같은 Supabase 프로젝트를 공유하는 다른 앱이 적용했다(저장소 확인 불가).
+-- 마이그레이션 히스토리는 DB당 하나라 전 프로젝트가 공유하므로, 버전 문자열만 맞춰
+-- db push가 "Remote migration versions not found"로 막히지 않게 한다.
+-- (migration repair --status reverted는 절대 쓰지 않는다 — 상대 프로젝트의 적용 이력이 지워진다.)
